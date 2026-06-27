@@ -26,7 +26,13 @@
       display: flex; align-items: center; justify-content: space-between;
       border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 10;
     }
-    .title { font-weight:700; font-size:1.1rem; }
+    .title { font-weight:700; font-size:1.1rem; display:flex; align-items:center; gap:8px; }
+    .sync-badge {
+      width:12px; height:12px; border-radius:50%;
+      background: #e74c3c; /* rouge par défaut */
+      transition: background 0.3s;
+    }
+    .sync-badge.online { background: #2ecc71; }
     .tool-row { display:flex; gap:8px; align-items: center; }
     .tool-btn {
       background: rgba(255,255,255,0.1); border: none;
@@ -132,7 +138,10 @@
 <body>
   <div id="app">
     <header>
-      <span class="title">🕊️ Loriot Carto</span>
+      <span class="title">
+        🕊️ Loriot Carto
+        <span class="sync-badge" id="sync-badge" title="État synchronisation"></span>
+      </span>
       <div class="tool-row">
         <select id="dl-radius" class="tool-select">
           <option value="5">5 km</option>
@@ -202,7 +211,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // ---------- Configuration Firebase (optionnelle) ----------
+    // ========== CONFIGURATION FIREBASE (remplacez par vos clés) ==========
     const firebaseConfig = {
       apiKey: "VOTRE_API_KEY",
       authDomain: "VOTRE_PROJECT.firebaseapp.com",
@@ -214,7 +223,7 @@
     };
     const useCloud = firebaseConfig.apiKey !== "VOTRE_API_KEY";
 
-    // ---------- IndexedDB pour le cache des tuiles ----------
+    // ========== INDEXEDDB pour les tuiles ==========
     function openTilesDB() {
       return new Promise((resolve, reject) => {
         const request = indexedDB.open('tilesDB', 1);
@@ -251,57 +260,47 @@
       });
     }
 
-    // ---------- Service Worker (intercepte les tuiles via IndexedDB) ----------
+    // ========== SERVICE WORKER ==========
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         const swCode = `
-          // Import du script IndexedDB dans le worker (nécessite un helper)
-          // Le SW ne peut pas importer de modules ES, on va donc utiliser un message
           self.addEventListener('fetch', e => {
             if (e.request.method !== 'GET') return;
             const url = new URL(e.request.url);
             if (url.hostname === 'tile.openstreetmap.org' || url.hostname === 'server.arcgisonline.com') {
               e.respondWith(
                 new Promise((resolve) => {
-                  // On envoie un message au client pour récupérer le blob depuis IndexedDB
-                  const clientPromise = self.clients.matchAll({ type: 'window' }).then(clients => {
+                  self.clients.matchAll({ type: 'window' }).then(clients => {
                     if (clients.length > 0) {
                       clients[0].postMessage({ type: 'GET_TILE', url: e.request.url });
                     }
-                    return new Promise((res) => {
-                      const handler = (event) => {
-                        if (event.data && event.data.type === 'TILE_RESPONSE' && event.data.url === e.request.url) {
-                          self.removeEventListener('message', handler);
-                          if (event.data.blob) {
-                            const blob = new Blob([event.data.blob], { type: 'image/png' });
-                            res(new Response(blob, { status: 200 }));
-                          } else {
-                            // Pas de tuile dans IndexedDB, on fetch et on stocke
-                            fetch(e.request).then(response => {
-                              if (response.status === 200) {
-                                const clone = response.clone();
-                                clone.blob().then(blob => {
-                                  if (clients.length > 0) clients[0].postMessage({ type: 'SAVE_TILE', url: e.request.url, blob });
-                                });
-                              }
-                              res(response);
-                            }).catch(() => res(new Response(null, { status: 404 })));
-                          }
-                        }
-                      };
-                      self.addEventListener('message', handler);
-                      // Timeout après 3 secondes
-                      setTimeout(() => {
+                    const handler = (event) => {
+                      if (event.data && event.data.type === 'TILE_RESPONSE' && event.data.url === e.request.url) {
                         self.removeEventListener('message', handler);
-                        // Fallback : fetch direct
-                        fetch(e.request).then(response => res(response)).catch(() => res(new Response(null, { status: 404 })));
-                      }, 3000);
-                    });
+                        if (event.data.blob) {
+                          resolve(new Response(new Blob([event.data.blob], { type: 'image/png' }), { status: 200 }));
+                        } else {
+                          fetch(e.request).then(response => {
+                            if (response.status === 200) {
+                              const clone = response.clone();
+                              clone.blob().then(blob => {
+                                if (clients.length > 0) clients[0].postMessage({ type: 'SAVE_TILE', url: e.request.url, blob });
+                              });
+                            }
+                            resolve(response);
+                          }).catch(() => resolve(new Response(null, { status: 404 })));
+                        }
+                      }
+                    };
+                    self.addEventListener('message', handler);
+                    setTimeout(() => {
+                      self.removeEventListener('message', handler);
+                      fetch(e.request).then(response => resolve(response)).catch(() => resolve(new Response(null, { status: 404 })));
+                    }, 3000);
                   });
                 })
               );
             } else {
-              // Pour les autres ressources, comportement normal
               e.respondWith(
                 caches.match(e.request).then(res => res || fetch(e.request).then(r => {
                   if (r.status === 200) {
@@ -316,29 +315,22 @@
         `;
         const blob = new Blob([swCode], { type: 'application/javascript' });
         navigator.serviceWorker.register(URL.createObjectURL(blob)).then(reg => {
-          console.log('Service Worker enregistré');
-          // Écouter les messages du SW pour fournir les tuiles
+          console.log('✅ Service Worker actif');
           navigator.serviceWorker.addEventListener('message', async (event) => {
             if (event.data.type === 'GET_TILE') {
               const blob = await getTileFromDB(event.data.url);
-              // On envoie le blob sous forme de buffer (le SW attend un Blob)
-              if (blob) {
-                const buffer = await blob.arrayBuffer();
-                reg.active.postMessage({ type: 'TILE_RESPONSE', url: event.data.url, blob: buffer });
-              } else {
-                reg.active.postMessage({ type: 'TILE_RESPONSE', url: event.data.url, blob: null });
-              }
+              const buffer = blob ? await blob.arrayBuffer() : null;
+              reg.active.postMessage({ type: 'TILE_RESPONSE', url: event.data.url, blob: buffer });
             } else if (event.data.type === 'SAVE_TILE') {
-              // Sauvegarder la tuile reçue
-              const blob = new Blob([event.data.blob], { type: 'image/png' });
-              await saveTileToDB(event.data.url, blob);
+              const newBlob = new Blob([event.data.blob], { type: 'image/png' });
+              await saveTileToDB(event.data.url, newBlob);
             }
           });
         }).catch(err => console.warn('Service Worker non enregistré', err));
       });
     }
 
-    // ---------- Application principale ----------
+    // ========== APPLICATION PRINCIPALE ==========
     (function() {
       const STORAGE_KEY = 'loriot_obs_local';
       let observations = [], circles = {};
@@ -346,10 +338,22 @@
       let drawingMode = false, currentEditId = null;
       let tempPhotos = [], selectedNidif = null, selectedMeteo = null;
       let db, observationsRef;
+      let isOnline = navigator.onLine;
 
       const $ = id => document.getElementById(id);
       const mapEl = $('map'), sheet = $('sheet');
-      
+      const syncBadge = $('sync-badge');
+
+      // Mise à jour de l'état de connexion
+      function updateOnlineStatus() {
+        isOnline = navigator.onLine;
+        syncBadge.className = 'sync-badge' + (isOnline ? ' online' : '');
+        syncBadge.title = isOnline ? 'Données synchronisées en ligne' : 'Hors ligne (données locales)';
+      }
+      window.addEventListener('online', updateOnlineStatus);
+      window.addEventListener('offline', updateOnlineStatus);
+      updateOnlineStatus();
+
       async function initData() {
         if (useCloud) {
           const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
@@ -361,6 +365,7 @@
             const data = snapshot.val();
             observations = data ? Object.values(data) : [];
             rebuildAllCircles();
+            toast(isOnline ? '☁️ Données chargées depuis le cloud' : '📴 Mode hors ligne (données locales)');
           });
         } else {
           observations = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -369,25 +374,39 @@
       }
 
       function saveObservation(obs) {
-        if (useCloud && db) {
+        if (useCloud && db && isOnline) {
           import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(m => {
-            m.set(m.ref(db, 'observations/' + obs.id), obs).catch(() => toast('⚠️ Hors ligne (sauvegarde locale en attente)'));
+            m.set(m.ref(db, 'observations/' + obs.id), obs)
+              .then(() => toast('☁️ Sauvegardé en ligne'))
+              .catch(() => {
+                // Échec : sauvegarde locale en secours
+                saveLocal(obs);
+                toast('⚠️ Sauvegarde locale (réessayera plus tard)');
+              });
           });
         } else {
-          const existing = observations.findIndex(o => o.id === obs.id);
-          if (existing >= 0) observations[existing] = obs; else observations.push(obs);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
-          rebuildAllCircles();
+          saveLocal(obs);
+          toast(isOnline ? '⚠️ Configuration cloud absente, stockage local' : '📴 Sauvegardé localement (synchronisation plus tard)');
         }
       }
 
+      function saveLocal(obs) {
+        const existing = observations.findIndex(o => o.id === obs.id);
+        if (existing >= 0) observations[existing] = obs; else observations.push(obs);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
+        rebuildAllCircles();
+      }
+
       function deleteObservation(id) {
-        if (useCloud && db) {
-          import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(m => m.remove(m.ref(db, 'observations/' + id)));
+        if (useCloud && db && isOnline) {
+          import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(m => {
+            m.remove(m.ref(db, 'observations/' + id)).then(() => toast('🗑️ Supprimé du cloud'));
+          });
         } else {
           observations = observations.filter(o => o.id !== id);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
           rebuildAllCircles();
+          toast('🗑️ Supprimé localement');
         }
       }
 
@@ -483,14 +502,12 @@
         obs.photos = [...tempPhotos];
         saveObservation(obs);
         closeSheet();
-        toast('💾 Nid enregistré');
       });
 
       $('btn-delete').addEventListener('click', () => {
         if(confirm('Supprimer définitivement ce point ?')) {
           deleteObservation(currentEditId);
           closeSheet();
-          toast('🗑️ Supprimé');
         }
       });
 
@@ -529,7 +546,7 @@
       };
       $('btn-geoloc').onclick = () => navigator.geolocation.getCurrentPosition(pos => map.setView([pos.coords.latitude, pos.coords.longitude], 15));
 
-      // ---------- Téléchargement hors-ligne (stockage IndexedDB) ----------
+      // Téléchargement des tuiles (IndexedDB)
       $('btn-dl-offline').onclick = async () => {
         const radiusKm = parseInt($('dl-radius').value) || 15;
         const center = map.getCenter();
@@ -558,7 +575,7 @@
             const response = await fetch(url);
             if (response.ok) {
               const blob = await response.blob();
-              await saveTileToDB(url, blob); // Stockage dans IndexedDB
+              await saveTileToDB(url, blob);
             }
           } catch(e) {}
           done++;
