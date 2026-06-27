@@ -1,10 +1,49 @@
 <!DOCTYPE html>
+<!--
+==============================================================================
+PROMPT DE CORRECTION DES ERREURS CONNUES
+==============================================================================
+1. **Le Service Worker ne s’enregistre pas ou ne fonctionne pas hors‑ligne** :
+   - Le SW utilise une URL blob. Cela ne fonctionne que si la page est servie
+     depuis un serveur web (http:// ou https://), **pas en double‑clic sur le fichier**.
+   - **Correction** : Utilisez un serveur local (Node.js http‑server, Live Server dans VS Code,
+     Python http.server, etc.). Lancez votre page sur http://localhost:XXXX.
+   - Si vous déployez en ligne, le SW nécessite **HTTPS** (ou localhost).
+
+2. **Les tuiles de la carte n’apparaissent pas hors‑ligne** :
+   - Le SW met en cache les tuiles seulement **après leur premier chargement en ligne**.
+   - Parcourez la carte (zoomez, déplacez‑vous) pendant que vous êtes connecté
+     pour remplir le cache. Ensuite, passez hors‑ligne.
+
+3. **La carte est grise / ne charge pas du tout** :
+   - Vérifiez que Leaflet est bien chargé depuis le CDN (connexion Internet active
+     au premier lancement). Si le CDN est bloqué, utilisez la version locale
+     (commentaire à l'intérieur du code).
+
+4. **La synchronisation ne sauvegarde rien** :
+   - Le bouton Sync simule un envoi. Pour une vraie API, remplacez la fonction
+     syncNow() par un appel fetch() vers votre serveur.
+
+5. **Les photos prises ne s’affichent pas hors‑ligne** :
+   - Les photos sont stockées en Base64 dans le localStorage. Tant que les données
+     sont sauvegardées, elles restent accessibles.
+
+6. **Le bouton Satellite ne fonctionne pas** :
+   - Vérifiez votre connexion (la couche satellite est également chargée en ligne).
+     Le cache s’applique aussi aux tuiles satellite après affichage.
+
+7. **Amélioration demandée** :
+   - Ajout d'un champ "Nombre d'individus" dans la fiche d'observation.
+   - Rayon du cercle d'observation réduit de moitié (75 mètres au lieu de 150).
+==============================================================================
+-->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#1e3b2c">
-  <title>🕊️ Loriot d'Europe</title>
+  <title>🕊️ Observatoire du Loriot</title>
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -19,7 +58,6 @@
       flex-wrap:wrap;
       gap:8px;
       border-bottom:2px solid #3e5d3e;
-      z-index:100;
     }
     .title { font-weight:700; font-size:1.1rem; display:flex; align-items:center; gap:6px; }
     .tools { display:flex; gap:6px; flex-wrap:wrap; }
@@ -154,7 +192,7 @@
     .sheet-content { padding:0 16px 16px; overflow-y:auto; }
     .form-group { margin-bottom:14px; }
     .form-group label { display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; color:#b9cfa8; }
-    select, input[type="text"] {
+    select, input[type="text"], input[type="number"] {
       width:100%;
       padding:10px;
       border-radius:10px;
@@ -208,7 +246,7 @@
     </header>
     <div id="map-container">
       <div id="map"></div>
-      <div id="drawing-hint">🎯 Cliquez sur la carte pour placer un cercle</div>
+      <div id="drawing-hint">🎯 Cliquez sur la carte pour placer un cercle (75 m)</div>
       <div class="fab-container">
         <button class="fab" id="fab-draw">⭕</button>
         <button class="fab" id="fab-list">📋</button>
@@ -224,6 +262,10 @@
     <div class="sheet" id="sheet">
       <div class="sheet-handle"></div>
       <div class="sheet-content">
+        <div class="form-group">
+          <label>🐦 Nombre d'individus</label>
+          <input type="number" id="nb-individus" min="0" value="0" placeholder="Ex: 2">
+        </div>
         <div class="form-group">
           <label>🌿 Indice de nidification</label>
           <select id="nesting-select">
@@ -255,13 +297,17 @@
   </div>
   <div class="toast" id="toast"></div>
 
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- ============================================================ -->
+  <!-- SERVICE WORKER (hors‑ligne) -->
+  <!-- ============================================================ -->
   <script>
-    // === Service Worker (hors‑ligne fiable) ===
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         const swCode = `
-          const CACHE_NAME = 'loriot-v4';
+          const CACHE_NAME = 'loriot-v5';
           const ASSETS = [
             '/',
             'index.html',
@@ -311,15 +357,22 @@
         `;
         const blob = new Blob([swCode], { type: 'application/javascript' });
         const swUrl = URL.createObjectURL(blob);
-        navigator.serviceWorker.register(swUrl).catch(err => console.warn('SW fallback', err));
+        navigator.serviceWorker.register(swUrl)
+          .then(() => console.log('✅ Service Worker enregistré'))
+          .catch(err => console.warn('⚠️ Échec du Service Worker', err));
       });
     }
+  </script>
 
-    // === Application ===
+  <!-- ============================================================ -->
+  <!-- APPLICATION PRINCIPALE -->
+  <!-- ============================================================ -->
+  <script>
     (function() {
-      const STORAGE = 'loriot_data';
+      const STORAGE = 'loriot_data_v2';
+      const DEFAULT_RADIUS = 75; // Rayon divisé par 2 (150 → 75 mètres)
       let observations = JSON.parse(localStorage.getItem(STORAGE) || '[]');
-      let syncQueue = JSON.parse(localStorage.getItem('loriot_sync') || '[]');
+      let syncQueue = JSON.parse(localStorage.getItem('loriot_sync_v2') || '[]');
       let map, standardLayer, satelliteLayer, currentLayer = 'standard';
       let circles = {};
       let drawingMode = false;
@@ -327,6 +380,7 @@
       let tempPhotos = [];
       let selectedWeather = null;
 
+      // Raccourcis DOM
       const $map = document.getElementById('map');
       const $hint = document.getElementById('drawing-hint');
       const $fabDraw = document.getElementById('fab-draw');
@@ -334,6 +388,7 @@
       const $panel = document.getElementById('panel');
       const $panelList = document.getElementById('panel-list');
       const $sheet = document.getElementById('sheet');
+      const $nbIndividus = document.getElementById('nb-individus');
       const $nestingSelect = document.getElementById('nesting-select');
       const $weatherRow = document.getElementById('weather-row');
       const $photoArea = document.getElementById('photo-area');
@@ -349,6 +404,7 @@
       const $btnGeoloc = document.getElementById('btn-geoloc');
       const $btnClosePanel = document.getElementById('btn-close-panel');
 
+      // Notification rapide
       function toast(msg) {
         $toast.textContent = msg;
         $toast.classList.add('show');
@@ -356,11 +412,13 @@
         $toast._t = setTimeout(() => $toast.classList.remove('show'), 2000);
       }
 
+      // Sauvegarde locale
       function save() {
         localStorage.setItem(STORAGE, JSON.stringify(observations));
-        localStorage.setItem('loriot_sync', JSON.stringify(syncQueue));
+        localStorage.setItem('loriot_sync_v2', JSON.stringify(syncQueue));
       }
 
+      // Couleurs selon l'indice de nidification
       function getColor(index) {
         switch(index) {
           case 'faible': return { fill: '#7CB342', stroke: '#558B2F' };
@@ -370,6 +428,7 @@
         }
       }
 
+      // Initialisation de la carte
       function initMap() {
         map = L.map('map', { center: [46.603, 1.888], zoom: 6 });
         standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -383,13 +442,15 @@
         standardLayer.addTo(map);
         updateSatelliteBtn();
 
+        // Clic sur la carte (mode dessin activé)
         map.on('click', e => {
           if (!drawingMode) return;
           const obs = {
             id: 'obs_'+Date.now(),
             lat: e.latlng.lat,
             lng: e.latlng.lng,
-            radius: 150,
+            radius: DEFAULT_RADIUS,
+            nbIndividus: 0,
             nestingIndex: '',
             weather: null,
             photos: [],
@@ -411,6 +472,7 @@
         $btnSatellite.classList.toggle('active', currentLayer === 'satellite');
       }
 
+      // Dessine un cercle sur la carte
       function drawCircle(obs) {
         const col = getColor(obs.nestingIndex);
         const circle = L.circle([obs.lat, obs.lng], {
@@ -420,11 +482,13 @@
           fillOpacity: 0.35,
           weight: 2.5
         }).addTo(map);
-        circle.bindPopup(`<b>Zone</b><br>${obs.nestingIndex || 'Nouveau'}`);
+        const nb = obs.nbIndividus ? `🐦 ${obs.nbIndividus} ind.` : '';
+        circle.bindPopup(`<b>Zone</b><br>${obs.nestingIndex || 'Nouveau'}<br>${nb}`);
         circle.on('click', () => { if(!drawingMode) openSheet(obs.id); });
         circles[obs.id] = circle;
       }
 
+      // Reconstruit tous les cercles à partir des observations sauvegardées
       function rebuildAllCircles() {
         Object.values(circles).forEach(c => map.removeLayer(c));
         circles = {};
@@ -433,6 +497,7 @@
         refreshPanel();
       }
 
+      // Mode dessin
       function startDrawing() {
         drawingMode = true;
         $fabDraw.classList.add('active');
@@ -447,10 +512,12 @@
         $hint.classList.remove('show');
       }
 
+      // Fiche d'observation
       function openSheet(id) {
         currentEditId = id;
         const obs = observations.find(o => o.id === id);
         if (!obs) return;
+        $nbIndividus.value = obs.nbIndividus || 0;
         $nestingSelect.value = obs.nestingIndex;
         selectedWeather = obs.weather;
         tempPhotos = [...obs.photos];
@@ -495,14 +562,17 @@
         });
       }
 
+      // Panneau latéral
       function refreshPanel() {
         $panelList.innerHTML = observations.length === 0
           ? '<p style="color:#aaa;text-align:center;padding:20px;">Aucune zone</p>'
-          : observations.map(o => `
-              <div class="obs-item" data-id="${o.id}">
+          : observations.map(o => {
+              const nbText = o.nbIndividus ? ` · 🐦${o.nbIndividus}` : '';
+              return `<div class="obs-item" data-id="${o.id}">
                 <span>📍</span>
-                <span>${o.nestingIndex ? getNestingLabel(o.nestingIndex) : 'Nouveau'} · ${new Date(o.timestamp).toLocaleDateString()}</span>
-              </div>`).join('');
+                <span>${o.nestingIndex ? getNestingLabel(o.nestingIndex) : 'Nouveau'}${nbText} · ${new Date(o.timestamp).toLocaleDateString()}</span>
+              </div>`;
+            }).join('');
         document.querySelectorAll('.obs-item').forEach(item => {
           item.addEventListener('click', () => {
             const id = item.dataset.id;
@@ -527,6 +597,7 @@
       function closePanel() { $panel.classList.remove('open'); }
       function updateCount() { $obsCount.textContent = observations.length + ' zone(s)'; }
 
+      // Synchronisation (simulée)
       function syncNow() {
         if (!navigator.onLine) { toast('📡 Hors ligne, synchronisation différée'); return; }
         if (syncQueue.length === 0) { toast('✅ Aucune donnée à synchroniser'); return; }
@@ -538,13 +609,14 @@
         }, 1000);
       }
 
-      // Événements
+      // Événements UI
       $fabDraw.addEventListener('click', () => drawingMode ? stopDrawing() : startDrawing());
       $fabList.addEventListener('click', () => $panel.classList.contains('open') ? closePanel() : openPanel());
       $btnClosePanel.addEventListener('click', closePanel);
       $btnSave.addEventListener('click', () => {
         if (!currentEditId) return;
         const obs = observations.find(o => o.id === currentEditId);
+        obs.nbIndividus = parseInt($nbIndividus.value) || 0;
         obs.nestingIndex = $nestingSelect.value;
         obs.weather = selectedWeather;
         obs.photos = [...tempPhotos];
@@ -631,6 +703,7 @@
         if (e.key === 'Escape') { stopDrawing(); closeSheet(); closePanel(); }
       });
 
+      // Démarrage
       initMap();
       updateCount();
       refreshPanel();
