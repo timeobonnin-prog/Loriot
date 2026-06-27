@@ -2,307 +2,196 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#1e3b2c">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Loriot">
-  <title>🕊️ Observatoire du Loriot</title>
-
-  <!-- Manifest PWA complet -->
-  <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIk9ic2VydmF0b2lyZSBkdSBMb3Jpb3QiLAogICJzaG9ydF9uYW1lIjogIkxvcmlvdCIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMWUzYjJjIiwKICAidGhlbWVfY29sb3IiOiAiIzFlM2IyYyIsCiAgImljb25zIjogW3sKICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhodGJHNXpQU0pvZEhSd09pOHZkM2QzTG5jekx5QXlNREF3TDNOMll5SWdhR1ZwWjJoMFBTZ3lNQ0F5TURBbklpQjJhV1YzUW05NFBTSXdJREFnTWpBd0lESXdNQ0lnZG1sbGQwSnZlRDBpTVRBd0lEQWdNakF3SURJd01DSWdaRzl0UFNJbGJpSS9Qand2YzNablBnPT0iLAogICAgInNpemVzIjogIjE5MngxOTIiLAogICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICB9XQp9" />
-
-  <!-- Leaflet CSS -->
+  <title>🕊️ Loriot d'Europe</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
   <style>
-    :root {
-      --fond: #0d1f16;
-      --vert: #2a5a3a;
-      --jaune: #f5d742;
-      --clair: #f4f1e1;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: var(--fond);
-      color: var(--clair);
-      height: 100vh;
-      overflow: hidden;
-    }
-    #app {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',system-ui,sans-serif; background:#0d1f16; color:#f4f1e1; height:100vh; overflow:hidden; }
+    #app { display:flex; flex-direction:column; height:100%; }
     header {
-      background: linear-gradient(90deg, #1f3b2c, #143621);
-      padding: 10px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 8px;
-      border-bottom: 2px solid #3e5d3e;
+      background:linear-gradient(90deg,#1f3b2c,#143621);
+      padding:10px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      gap:8px;
+      border-bottom:2px solid #3e5d3e;
+      z-index:100;
     }
-    .title {
-      font-weight: 700;
-      font-size: 1.2rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .tools {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
+    .title { font-weight:700; font-size:1.1rem; display:flex; align-items:center; gap:6px; }
+    .tools { display:flex; gap:6px; flex-wrap:wrap; }
     .tool-btn {
-      background: rgba(255,255,255,0.15);
-      border: 1px solid rgba(255,255,255,0.3);
-      color: var(--clair);
-      padding: 6px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      transition: 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      backdrop-filter: blur(5px);
+      background:rgba(255,255,255,0.15);
+      border:1px solid rgba(255,255,255,0.3);
+      color:#f4f1e1;
+      padding:6px 12px;
+      border-radius:8px;
+      cursor:pointer;
+      font-size:0.8rem;
+      backdrop-filter:blur(5px);
+      display:flex;
+      align-items:center;
+      gap:4px;
     }
-    .tool-btn:hover { background: rgba(255,255,255,0.25); }
-    .tool-btn.active { background: var(--jaune); color: #1a2e1a; border-color: var(--jaune); }
-    #map-container {
-      flex: 1;
-      position: relative;
-    }
-    #map {
-      width: 100%;
-      height: 100%;
-      background: #2a4a34;
-    }
+    .tool-btn.active { background:#f5d742; color:#1a2e1a; border-color:#f5d742; }
+    #map-container { flex:1; position:relative; }
+    #map { width:100%; height:100%; background:#2a4a34; }
     .fab-container {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      z-index: 500;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      position:absolute;
+      bottom:20px;
+      right:20px;
+      z-index:500;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
     }
     .fab {
-      width: 52px;
-      height: 52px;
-      border-radius: 50%;
-      border: 1px solid rgba(255,255,255,0.3);
-      background: rgba(20,30,20,0.85);
-      color: var(--clair);
-      font-size: 1.4rem;
-      cursor: pointer;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-      transition: 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width:50px; height:50px;
+      border-radius:50%;
+      border:1px solid rgba(255,255,255,0.3);
+      background:rgba(20,30,20,0.85);
+      color:#f4f1e1;
+      font-size:1.3rem;
+      cursor:pointer;
+      backdrop-filter:blur(10px);
+      box-shadow:0 4px 15px rgba(0,0,0,0.5);
+      display:flex;
+      align-items:center;
+      justify-content:center;
     }
-    .fab.active {
-      background: #c0392b;
-      border-color: #ff6b6b;
-      box-shadow: 0 0 20px #ff6b6b;
-    }
+    .fab.active { background:#c0392b; border-color:#ff6b6b; }
     #drawing-hint {
-      position: absolute;
-      top: 15px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.7);
-      color: var(--jaune);
-      padding: 6px 18px;
-      border-radius: 20px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      z-index: 400;
-      pointer-events: none;
-      opacity: 0;
-      transition: 0.3s;
+      position:absolute;
+      top:15px;
+      left:50%;
+      transform:translateX(-50%);
+      background:rgba(0,0,0,0.7);
+      color:#f5d742;
+      padding:6px 18px;
+      border-radius:20px;
+      font-weight:600;
+      font-size:0.85rem;
+      z-index:400;
+      pointer-events:none;
+      opacity:0;
+      transition:0.3s;
     }
-    #drawing-hint.visible { opacity: 1; }
+    #drawing-hint.show { opacity:1; }
     .toast {
-      position: fixed;
-      bottom: 90px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #000000cc;
-      color: var(--jaune);
-      padding: 8px 20px;
-      border-radius: 20px;
-      font-size: 0.9rem;
-      z-index: 9999;
-      opacity: 0;
-      pointer-events: none;
-      transition: 0.3s;
+      position:fixed;
+      bottom:90px;
+      left:50%;
+      transform:translateX(-50%);
+      background:#000000cc;
+      color:#f5d742;
+      padding:8px 20px;
+      border-radius:20px;
+      font-size:0.9rem;
+      z-index:9999;
+      opacity:0;
+      pointer-events:none;
+      transition:0.3s;
     }
-    .toast.show { opacity: 1; }
+    .toast.show { opacity:1; }
     .panel {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 85%;
-      max-width: 380px;
-      height: 100%;
-      background: rgba(15,25,15,0.95);
-      backdrop-filter: blur(20px);
-      z-index: 600;
-      transform: translateX(100%);
-      transition: 0.3s;
-      display: flex;
-      flex-direction: column;
-      border-left: 1px solid rgba(255,255,255,0.2);
+      position:absolute;
+      top:0; right:0;
+      width:85%; max-width:380px;
+      height:100%;
+      background:rgba(15,25,15,0.95);
+      backdrop-filter:blur(20px);
+      z-index:600;
+      transform:translateX(100%);
+      transition:0.3s;
+      display:flex;
+      flex-direction:column;
+      border-left:1px solid rgba(255,255,255,0.2);
     }
-    .panel.open { transform: translateX(0); }
+    .panel.open { transform:translateX(0); }
     .panel-header {
-      padding: 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(255,255,255,0.2);
+      padding:14px;
+      display:flex;
+      justify-content:space-between;
+      border-bottom:1px solid rgba(255,255,255,0.2);
     }
-    .panel-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-    }
+    .panel-list { flex:1; overflow-y:auto; padding:10px; }
     .obs-item {
-      background: rgba(255,255,255,0.08);
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 8px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      border: 1px solid rgba(255,255,255,0.15);
+      background:rgba(255,255,255,0.08);
+      border-radius:10px;
+      padding:12px;
+      margin-bottom:8px;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      border:1px solid rgba(255,255,255,0.15);
     }
     .sheet {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(18,30,18,0.95);
-      backdrop-filter: blur(20px);
-      border-radius: 24px 24px 0 0;
-      box-shadow: 0 -5px 25px rgba(0,0,0,0.6);
-      z-index: 550;
-      transform: translateY(100%);
-      transition: 0.3s;
-      max-height: 65vh;
-      display: flex;
-      flex-direction: column;
-      border-top: 1px solid rgba(255,255,255,0.2);
+      position:absolute;
+      bottom:0; left:0; right:0;
+      background:rgba(18,30,18,0.95);
+      backdrop-filter:blur(20px);
+      border-radius:24px 24px 0 0;
+      box-shadow:0 -5px 25px rgba(0,0,0,0.6);
+      z-index:550;
+      transform:translateY(100%);
+      transition:0.3s;
+      max-height:65vh;
+      display:flex;
+      flex-direction:column;
+      border-top:1px solid rgba(255,255,255,0.2);
     }
-    .sheet.open { transform: translateY(0); }
+    .sheet.open { transform:translateY(0); }
     .sheet-handle {
-      width: 35px;
-      height: 5px;
-      background: #5a7a4a;
-      border-radius: 10px;
-      margin: 12px auto 6px;
+      width:35px; height:5px;
+      background:#5a7a4a;
+      border-radius:10px;
+      margin:12px auto 6px;
     }
-    .sheet-content {
-      padding: 0 16px 16px;
-      overflow-y: auto;
-    }
-    .form-group { margin-bottom: 14px; }
-    .form-group label {
-      display: block;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-      color: #b9cfa8;
-    }
+    .sheet-content { padding:0 16px 16px; overflow-y:auto; }
+    .form-group { margin-bottom:14px; }
+    .form-group label { display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; color:#b9cfa8; }
     select, input[type="text"] {
-      width: 100%;
-      padding: 10px;
-      border-radius: 10px;
-      background: rgba(0,0,0,0.4);
-      border: 1px solid rgba(255,255,255,0.3);
-      color: #fff;
-      font-size: 0.9rem;
+      width:100%;
+      padding:10px;
+      border-radius:10px;
+      background:rgba(0,0,0,0.4);
+      border:1px solid rgba(255,255,255,0.3);
+      color:#fff;
+      font-size:0.9rem;
     }
-    .weather-row {
-      display: flex;
-      gap: 8px;
-    }
+    .weather-row { display:flex; gap:8px; }
     .weather-btn {
-      flex: 1;
-      padding: 8px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 10px;
-      text-align: center;
-      font-size: 1.4rem;
-      cursor: pointer;
+      flex:1;
+      padding:8px;
+      background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.3);
+      border-radius:10px;
+      text-align:center;
+      font-size:1.4rem;
+      cursor:pointer;
     }
-    .weather-btn.selected {
-      border-color: var(--jaune);
-      background: rgba(245,215,66,0.2);
-      box-shadow: 0 0 12px var(--jaune);
-    }
-    .photo-area {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-    .photo-thumb {
-      width: 55px;
-      height: 55px;
-      object-fit: cover;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.3);
-    }
-    .photo-wrap {
-      position: relative;
-    }
+    .weather-btn.selected { border-color:#f5d742; background:rgba(245,215,66,0.2); box-shadow:0 0 12px #f5d742; }
+    .photo-area { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .photo-thumb { width:55px; height:55px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.3); }
+    .photo-wrap { position:relative; }
     .photo-wrap .del {
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      background: #e74c3c;
-      color: white;
-      border: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      font-size: 0.65rem;
-      cursor: pointer;
+      position:absolute;
+      top:-6px; right:-6px;
+      background:#e74c3c;
+      color:white;
+      border:none;
+      width:20px; height:20px;
+      border-radius:50%;
+      font-size:0.65rem;
+      cursor:pointer;
     }
-    .btn-primary {
-      background: var(--jaune);
-      color: #1a2e1a;
-      border: none;
-      padding: 12px;
-      border-radius: 10px;
-      font-weight: 700;
-      width: 100%;
-      cursor: pointer;
-      margin-top: 6px;
-    }
-    .btn-danger {
-      background: #c0392b;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 10px;
-      width: 100%;
-      margin-top: 6px;
-      cursor: pointer;
-      display: none;
-    }
-    .btn-danger.show { display: block; }
+    .btn-primary { background:#f5d742; color:#1a2e1a; border:none; padding:12px; border-radius:10px; font-weight:700; width:100%; cursor:pointer; margin-top:6px; }
+    .btn-danger { background:#c0392b; color:white; border:none; padding:12px; border-radius:10px; width:100%; margin-top:6px; cursor:pointer; display:none; }
+    .btn-danger.show { display:block; }
   </style>
 </head>
 <body>
@@ -312,9 +201,9 @@
       <span id="obs-count">0 zone(s)</span>
       <div class="tools">
         <button class="tool-btn" id="btn-satellite">🛰️ Satellite</button>
-        <button class="tool-btn" id="btn-reload">🔄 Recharger</button>
+        <button class="tool-btn" id="btn-reload">🔄</button>
         <button class="tool-btn" id="btn-sync">📡 Sync</button>
-        <button class="tool-btn" id="btn-geoloc">📍 Localiser</button>
+        <button class="tool-btn" id="btn-geoloc">📍</button>
       </div>
     </header>
     <div id="map-container">
@@ -330,9 +219,7 @@
         <span>📋 Zones</span>
         <button id="btn-close-panel" style="background:none;border:none;color:white;font-size:1.2rem;">✕</button>
       </div>
-      <div class="panel-list" id="panel-list">
-        <p style="color:#aaa;text-align:center;padding:20px;">Aucune zone</p>
-      </div>
+      <div class="panel-list" id="panel-list"><p style="color:#aaa;text-align:center;padding:20px;">Aucune zone</p></div>
     </div>
     <div class="sheet" id="sheet">
       <div class="sheet-handle"></div>
@@ -368,84 +255,71 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Service Worker pour le cache hors‑ligne -->
   <script>
+    // === Service Worker (hors‑ligne fiable) ===
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {
-          // Fallback : créer un SW inline
-          const swScript = `
-            const CACHE = 'loriot-v1';
-            const FILES = [
-              '/',
-              'index.html',
-              'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-              'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-            ];
-
-            self.addEventListener('install', e => {
-              e.waitUntil(
-                caches.open(CACHE).then(cache => cache.addAll(FILES).then(() => self.skipWaiting()))
-              );
-            });
-
-            self.addEventListener('activate', e => {
-              e.waitUntil(
-                caches.keys().then(keys => Promise.all(
-                  keys.filter(k => k !== CACHE).map(k => caches.delete(k))
-                )).then(() => self.clients.claim())
-              );
-            });
-
-            self.addEventListener('fetch', e => {
-              if (e.request.method !== 'GET') return;
-              const url = new URL(e.request.url);
-              // Mettre en cache les tuiles (OpenStreetMap + ESRI Satellite)
-              if (url.hostname === 'tile.openstreetmap.org' || url.hostname === 'server.arcgisonline.com') {
-                e.respondWith(
-                  caches.match(e.request).then(cached => {
-                    const network = fetch(e.request).then(res => {
-                      if (res && res.status === 200) {
-                        const clone = res.clone();
-                        caches.open(CACHE).then(cache => cache.put(e.request, clone));
-                      }
-                      return res;
-                    }).catch(() => cached);
-                    return cached || network;
-                  })
-                );
-              } else {
-                e.respondWith(
-                  fetch(e.request).then(res => {
-                    if (res && res.status === 200) {
-                      const clone = res.clone();
-                      caches.open(CACHE).then(cache => cache.put(e.request, clone));
+        const swCode = `
+          const CACHE_NAME = 'loriot-v4';
+          const ASSETS = [
+            '/',
+            'index.html',
+            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+          ];
+          self.addEventListener('install', e => {
+            e.waitUntil(
+              caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS).then(() => self.skipWaiting()))
+            );
+          });
+          self.addEventListener('activate', e => {
+            e.waitUntil(
+              caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+              .then(() => self.clients.claim())
+            );
+          });
+          self.addEventListener('fetch', e => {
+            if (e.request.method !== 'GET') return;
+            const url = new URL(e.request.url);
+            if (url.hostname === 'tile.openstreetmap.org' || url.hostname === 'server.arcgisonline.com') {
+              e.respondWith(
+                caches.match(e.request).then(cached => {
+                  return fetch(e.request).then(response => {
+                    if (response && response.status === 200) {
+                      const clone = response.clone();
+                      caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
                     }
-                    return res;
-                  }).catch(() => caches.match(e.request))
-                );
-              }
-            });
-          `;
-          const blob = new Blob([swScript], { type: 'application/javascript' });
-          const swUrl = URL.createObjectURL(blob);
-          navigator.serviceWorker.register(swUrl);
-        });
+                    return response;
+                  }).catch(() => cached);
+                })
+              );
+            } else {
+              e.respondWith(
+                caches.match(e.request).then(cached => {
+                  return fetch(e.request).then(response => {
+                    if (response && response.status === 200) {
+                      const clone = response.clone();
+                      caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+                    }
+                    return response;
+                  }).catch(() => cached);
+                })
+              );
+            }
+          });
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(swUrl).catch(err => console.warn('SW fallback', err));
       });
     }
-  </script>
 
-  <script>
+    // === Application ===
     (function() {
-      // ---------- STOCKAGE ----------
       const STORAGE = 'loriot_data';
       let observations = JSON.parse(localStorage.getItem(STORAGE) || '[]');
       let syncQueue = JSON.parse(localStorage.getItem('loriot_sync') || '[]');
-
-      // ---------- VARIABLES CARTE ----------
       let map, standardLayer, satelliteLayer, currentLayer = 'standard';
       let circles = {};
       let drawingMode = false;
@@ -453,7 +327,6 @@
       let tempPhotos = [];
       let selectedWeather = null;
 
-      // DOM
       const $map = document.getElementById('map');
       const $hint = document.getElementById('drawing-hint');
       const $fabDraw = document.getElementById('fab-draw');
@@ -476,7 +349,6 @@
       const $btnGeoloc = document.getElementById('btn-geoloc');
       const $btnClosePanel = document.getElementById('btn-close-panel');
 
-      // Utilitaires
       function toast(msg) {
         $toast.textContent = msg;
         $toast.classList.add('show');
@@ -498,10 +370,8 @@
         }
       }
 
-      // ---------- CARTE ----------
       function initMap() {
         map = L.map('map', { center: [46.603, 1.888], zoom: 6 });
-
         standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
           attribution: '&copy; OpenStreetMap'
@@ -510,9 +380,7 @@
           maxZoom: 19,
           attribution: '&copy; Esri, Maxar, Earthstar Geographics'
         });
-
         standardLayer.addTo(map);
-        currentLayer = 'standard';
         updateSatelliteBtn();
 
         map.on('click', e => {
@@ -535,7 +403,6 @@
           openSheet(obs.id);
           toast('✅ Zone créée');
         });
-
         rebuildAllCircles();
       }
 
@@ -569,7 +436,7 @@
       function startDrawing() {
         drawingMode = true;
         $fabDraw.classList.add('active');
-        $hint.classList.add('visible');
+        $hint.classList.add('show');
         closeSheet();
         closePanel();
       }
@@ -577,10 +444,9 @@
       function stopDrawing() {
         drawingMode = false;
         $fabDraw.classList.remove('active');
-        $hint.classList.remove('visible');
+        $hint.classList.remove('show');
       }
 
-      // ---------- FEUILLE ----------
       function openSheet(id) {
         currentEditId = id;
         const obs = observations.find(o => o.id === id);
@@ -608,7 +474,6 @@
       }
 
       function renderPhotos() {
-        // Supprimer les anciennes miniatures
         document.querySelectorAll('.photo-wrap').forEach(el => el.remove());
         tempPhotos.forEach((b64, idx) => {
           const wrap = document.createElement('div');
@@ -630,7 +495,6 @@
         });
       }
 
-      // ---------- PANNEAU ----------
       function refreshPanel() {
         $panelList.innerHTML = observations.length === 0
           ? '<p style="color:#aaa;text-align:center;padding:20px;">Aucune zone</p>'
@@ -659,40 +523,22 @@
         }
       }
 
-      function openPanel() {
-        $panel.classList.add('open');
-        refreshPanel();
-      }
-      function closePanel() {
-        $panel.classList.remove('open');
-      }
+      function openPanel() { $panel.classList.add('open'); refreshPanel(); }
+      function closePanel() { $panel.classList.remove('open'); }
+      function updateCount() { $obsCount.textContent = observations.length + ' zone(s)'; }
 
-      function updateCount() {
-        $obsCount.textContent = observations.length + ' zone(s)';
-      }
-
-      // ---------- SYNCHRONISATION ----------
       function syncNow() {
-        if (!navigator.onLine) {
-          toast('📡 Hors ligne, synchronisation différée');
-          return;
-        }
-        if (syncQueue.length === 0) {
-          toast('✅ Aucune donnée à synchroniser');
-          return;
-        }
-        const data = observations.filter(o => syncQueue.includes(o.id));
-        console.log('📤 Envoi de', data.length, 'observations (simulation)');
-        // Ici, remplacez par votre appel API réel
+        if (!navigator.onLine) { toast('📡 Hors ligne, synchronisation différée'); return; }
+        if (syncQueue.length === 0) { toast('✅ Aucune donnée à synchroniser'); return; }
+        console.log('📤 Envoi de', syncQueue.length, 'observations (simulation)');
         setTimeout(() => {
           syncQueue = [];
           save();
-          $btnSync.textContent = '📡 Sync';
           toast('✅ Synchronisation terminée');
         }, 1000);
       }
 
-      // ---------- ÉVÉNEMENTS ----------
+      // Événements
       $fabDraw.addEventListener('click', () => drawingMode ? stopDrawing() : startDrawing());
       $fabList.addEventListener('click', () => $panel.classList.contains('open') ? closePanel() : openPanel());
       $btnClosePanel.addEventListener('click', closePanel);
@@ -704,10 +550,7 @@
         obs.photos = [...tempPhotos];
         if (!syncQueue.includes(obs.id)) syncQueue.push(obs.id);
         save();
-        if (circles[obs.id]) {
-          map.removeLayer(circles[obs.id]);
-          drawCircle(obs);
-        }
+        if (circles[obs.id]) { map.removeLayer(circles[obs.id]); drawCircle(obs); }
         updateCount();
         refreshPanel();
         closeSheet();
@@ -771,7 +614,6 @@
         toast(currentLayer === 'satellite' ? '🛰️ Vue satellite' : '🗺️ Vue standard');
       });
       $btnReload.addEventListener('click', () => {
-        // Force le rechargement des tuiles visibles
         const center = map.getCenter();
         const zoom = map.getZoom();
         map.setView(center, zoom);
@@ -779,24 +621,16 @@
       });
       $btnSync.addEventListener('click', syncNow);
       $btnGeoloc.addEventListener('click', () => {
-        if (!navigator.geolocation) {
-          toast('📍 Géolocalisation non supportée');
-          return;
-        }
+        if (!navigator.geolocation) { toast('📍 Géolocalisation non supportée'); return; }
         navigator.geolocation.getCurrentPosition(
           pos => map.setView([pos.coords.latitude, pos.coords.longitude], 16),
           () => toast('📍 Impossible de vous localiser')
         );
       });
       document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') {
-          stopDrawing();
-          closeSheet();
-          closePanel();
-        }
+        if (e.key === 'Escape') { stopDrawing(); closeSheet(); closePanel(); }
       });
 
-      // Initialisation
       initMap();
       updateCount();
       refreshPanel();
