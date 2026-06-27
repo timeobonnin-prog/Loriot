@@ -1,1808 +1,909 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#6B7B3A">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Loriot d'Europe">
-    <meta name="description" content="Application d'observation ornithologique pour le Loriot d'Europe - PWA hors ligne">
-    <title>🕊️ Observatoire du Loriot d'Europe</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1e3b2c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Loriot d'Europe">
+  <meta name="description" content="Application d'observation ornithologique pour le Loriot d'Europe – PWA 100% hors ligne">
+  <title>🕊️ Observatoire du Loriot d'Europe</title>
 
-    <!-- Leaflet CSS CDN -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  <!-- Leaflet CSS via CDN (sera mis en cache par le Service Worker) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
-    <!-- Leaflet JS CDN -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="">
-</script>
-
-<style>
+  <style>
     :root {
-        --vert-olive: #6B7B3A;
-        --vert-olive-clair: #7D8F4A;
-        --vert-olive-fonce: #4A5630;
-        --beige: #F5F0E8;
-        --beige-fonce: #E8E0D0;
-        --jaune-loriot: #F5D34A;
-        --jaune-loriot-clair: #FDE8A0;
-        --jaune-loriot-fonce: #D4A820;
-        --blanc-casse: #FAF9F6;
-        --gris-doux: #6B5E4F;
-        --rouge-doux: #C0392B;
-        --orange-moyen: #E67E22;
-        --vert-faible: #7CB342;
-        --ombre: 0 4px 20px rgba(0, 0, 0, 0.12);
-        --ombre-forte: 0 8px 32px rgba(0, 0, 0, 0.18);
-        --radius: 16px;
-        --radius-petit: 10px;
-        --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        --font-principale: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --fond-nature: #0d1f16;
+      --vert-emeraude: #1f6d43;
+      --vert-feuille: #2a5a3a;
+      --beige-clair: #f4f1e1;
+      --jaune-loriot: #f5d742;
+      --jaune-vif: #fde482;
+      --blanc-transparent: rgba(255, 255, 255, 0.15);
+      --bordure-verre: rgba(255, 255, 255, 0.25);
+      --ombre-luxe: 0 10px 30px rgba(0, 0, 0, 0.5);
+      --radius: 20px;
+      --police: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
     body {
-        font-family: var(--font-principale);
-        background: var(--beige);
-        color: #3D3226;
-        overflow: hidden;
-        height: 100vh;
-        width: 100vw;
-        -webkit-tap-highlight-color: transparent;
-        -webkit-font-smoothing: antialiased;
-        user-select: none;
-        -webkit-user-select: none;
-        position: relative;
+      font-family: var(--police);
+      background: var(--fond-nature);
+      color: #e0e0c0;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
-    /* ============ ÉCRAN DE SÉCURITÉ ============ */
-    #security-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 9999;
-        background: linear-gradient(160deg, #5A6B35 0%, #3D4A24 30%, #2B3618 60%, #4A5630 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        transition: opacity 0.5s ease, visibility 0.5s ease;
-        opacity: 1;
-        visibility: visible;
+    /* Badge réseau */
+    #offline-badge {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #e74c3c;
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      z-index: 10000;
+      display: none;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    #offline-badge.show {
+      display: block;
     }
 
-    #security-overlay.hidden {
-        opacity: 0;
-        visibility: hidden;
-        pointer-events: none;
+    /* Lucioles en fond */
+    .fireflies {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
     }
 
-    .security-card {
-        background: var(--blanc-casse);
-        border-radius: 24px;
-        padding: 40px 30px 35px;
-        width: 90%;
-        max-width: 420px;
-        text-align: center;
-        box-shadow: var(--ombre-forte);
-        animation: cardEntry 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    .firefly {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: #f9f3b0;
+      border-radius: 50%;
+      box-shadow: 0 0 18px 4px #ffd966, 0 0 35px 8px #ffe484;
+      animation: floatFirefly linear infinite, glowPulse 1.5s ease-in-out infinite;
+      opacity: 0.8;
     }
 
-    @keyframes cardEntry {
-        from {
-            opacity: 0;
-            transform: translateY(30px) scale(0.94);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
+    @keyframes floatFirefly {
+      0% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(30px, -40px) scale(1.2); }
+      50% { transform: translate(-20px, -20px) scale(0.9); }
+      75% { transform: translate(10px, 15px) scale(1.1); }
+      100% { transform: translate(0, 0) scale(1); }
     }
 
-    .security-card .icon-bird {
-        font-size: 64px;
-        display: block;
-        margin-bottom: 8px;
-        animation: floatBird 3s ease-in-out infinite;
+    @keyframes glowPulse {
+      0%, 100% { opacity: 0.7; box-shadow: 0 0 18px 4px #ffd966; }
+      50% { opacity: 1; box-shadow: 0 0 28px 8px #ffe484; }
     }
 
-    @keyframes floatBird {
-        0%,
-        100% {
-            transform: translateY(0);
-        }
-        50% {
-            transform: translateY(-12px);
-        }
-    }
-
-    .security-card h1 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--vert-olive-fonce);
-        margin-bottom: 6px;
-        letter-spacing: -0.3px;
-    }
-
-    .security-card .subtitle {
-        font-size: 0.9rem;
-        color: #8B7E6A;
-        margin-bottom: 24px;
-        font-style: italic;
-    }
-
-    .security-card label {
-        display: block;
-        text-align: left;
-        font-weight: 600;
-        font-size: 0.85rem;
-        color: var(--gris-doux);
-        margin-bottom: 6px;
-        letter-spacing: 0.3px;
-    }
-
-    .security-card .input-wrapper {
-        position: relative;
-        display: flex;
-        gap: 10px;
-    }
-
-    .security-card input {
-        flex: 1;
-        padding: 14px 18px;
-        border: 2px solid var(--beige-fonce);
-        border-radius: var(--radius-petit);
-        font-size: 1rem;
-        font-family: var(--font-principale);
-        background: var(--beige);
-        color: #3D3226;
-        transition: var(--transition);
-        letter-spacing: 1px;
-        outline: none;
-    }
-
-    .security-card input:focus {
-        border-color: var(--jaune-loriot);
-        box-shadow: 0 0 0 4px rgba(245, 211, 74, 0.2);
-        background: #fff;
-    }
-
-    .security-card button {
-        padding: 14px 22px;
-        background: var(--jaune-loriot);
-        color: #3D3226;
-        border: none;
-        border-radius: var(--radius-petit);
-        font-weight: 700;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: var(--transition);
-        font-family: var(--font-principale);
-        white-space: nowrap;
-        letter-spacing: 0.3px;
-    }
-
-    .security-card button:hover {
-        background: var(--jaune-loriot-fonce);
-        color: #fff;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 14px rgba(212, 168, 32, 0.35);
-    }
-    .security-card button:active {
-        transform: scale(0.96);
-    }
-
-    .security-card .error-msg {
-        color: var(--rouge-doux);
-        font-size: 0.85rem;
-        margin-top: 10px;
-        min-height: 20px;
-        font-weight: 500;
-        transition: var(--transition);
-    }
-
-    .security-footer {
-        position: absolute;
-        bottom: 20px;
-        color: rgba(255, 255, 255, 0.5);
-        font-size: 0.7rem;
-        letter-spacing: 1px;
-    }
-
-    /* ============ APPLICATION PRINCIPALE ============ */
+    /* Application */
     #app-container {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-        width: 100vw;
-        position: relative;
-        opacity: 0;
-        transition: opacity 0.4s ease;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+      position: relative;
+      background: #1e3b2c;
+      z-index: 1;
     }
 
-    #app-container.visible {
-        opacity: 1;
-    }
-
-    /* Barre supérieure */
     #top-bar {
-        background: linear-gradient(135deg, var(--vert-olive) 0%, var(--vert-olive-fonce) 100%);
-        color: #fff;
-        padding: 12px 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        z-index: 100;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
-        gap: 10px;
-        flex-shrink: 0;
-        min-height: 56px;
+      background: linear-gradient(90deg, #1f3b2c, #143621);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #f5e7b3;
+      box-shadow: 0 2px 15px rgba(0, 0, 0, 0.6);
+      z-index: 100;
+      gap: 10px;
+      flex-shrink: 0;
     }
 
-    #top-bar .app-title {
-        font-weight: 700;
-        font-size: 1rem;
-        letter-spacing: -0.2px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+    .app-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-shadow: 0 0 10px #1e3b2c;
     }
 
-    #top-bar .app-title .emoji {
-        font-size: 1.4rem;
+    .obs-count {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      backdrop-filter: blur(10px);
     }
 
-    #top-bar .obs-count {
-        background: rgba(255, 255, 255, 0.2);
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        letter-spacing: 0.3px;
-        white-space: nowrap;
+    .btn-geoloc {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: #f5e7b3;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    #top-bar .btn-geoloc {
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
-        color: #fff;
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 1.1rem;
-        transition: var(--transition);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    #top-bar .btn-geoloc:hover {
-        background: rgba(255, 255, 255, 0.35);
-        transform: scale(1.08);
-    }
-    #top-bar .btn-geoloc:active {
-        transform: scale(0.9);
-    }
-
-    /* Carte */
     #map-container {
-        flex: 1;
-        position: relative;
-        z-index: 1;
-        background: #e8e4da;
+      flex: 1;
+      position: relative;
+      background: #2a4a34;
     }
+
     #map {
-        width: 100%;
-        height: 100%;
+      width: 100%;
+      height: 100%;
+      border-top: 2px solid #3e5d3e;
     }
 
-    /* Curseur en mode dessin */
-    #map-container.drawing-mode {
-        cursor: crosshair;
-    }
-    #map-container.drawing-mode #map {
-        cursor: crosshair;
-    }
-
-    /* Indicateur mode dessin */
-    #drawing-indicator {
-        position: absolute;
-        top: 16px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--jaune-loriot);
-        color: #3D3226;
-        padding: 8px 18px;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 0.85rem;
-        z-index: 50;
-        pointer-events: none;
-        box-shadow: var(--ombre);
-        opacity: 0;
-        transition: var(--transition);
-        letter-spacing: 0.3px;
-    }
-    #drawing-indicator.active {
-        opacity: 1;
+    .drawing-indicator {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: #f5d742;
+      padding: 8px 20px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      z-index: 50;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      backdrop-filter: blur(10px);
+      border: 1px solid #f5d742;
     }
 
-    /* ============ BOUTONS FLOTTANTS (FAB) ============ */
+    .drawing-indicator.active {
+      opacity: 1;
+    }
+
     .fab-container {
-        position: absolute;
-        bottom: 20px;
-        right: 16px;
-        z-index: 200;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
+      position: absolute;
+      bottom: 25px;
+      right: 20px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
 
     .fab {
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        border: none;
-        cursor: pointer;
-        font-size: 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: var(--ombre-forte);
-        transition: var(--transition);
-        position: relative;
-        color: #3D3226;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 1.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      transition: var(--transition);
+      background: rgba(20, 30, 20, 0.8);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #f5e7b3;
     }
 
-    .fab-draw {
-        background: var(--jaune-loriot);
-    }
-    .fab-draw:hover {
-        background: var(--jaune-loriot-fonce);
-        color: #fff;
-        transform: scale(1.06);
-        box-shadow: 0 8px 28px rgba(212, 168, 32, 0.4);
-    }
-    .fab-draw:active {
-        transform: scale(0.9);
-    }
     .fab-draw.active {
-        background: #e74c3c;
-        color: #fff;
-        animation: pulse 1.2s ease-in-out infinite;
+      background: #c0392b;
+      color: white;
+      border-color: #ff6b6b;
+      box-shadow: 0 0 25px #ff6b6b;
     }
 
-    @keyframes pulse {
-        0%,
-        100% {
-            box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.5);
-        }
-        50% {
-            box-shadow: 0 0 0 18px rgba(231, 76, 60, 0);
-        }
-    }
-
-    .fab-list {
-        background: #fff;
-        font-size: 1.2rem;
-    }
-    .fab-list:hover {
-        background: #f0f0f0;
-        transform: scale(1.06);
-    }
-    .fab-list:active {
-        transform: scale(0.9);
-    }
-
-    /* ============ PANNEAU LATÉRAL DES OBSERVATIONS ============ */
     #observations-panel {
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 90%;
-        max-width: 400px;
-        height: 100%;
-        background: var(--blanc-casse);
-        z-index: 300;
-        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
-        transform: translateX(105%);
-        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        border-radius: 20px 0 0 20px;
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 90%;
+      max-width: 420px;
+      height: 100%;
+      background: rgba(15, 25, 15, 0.95);
+      backdrop-filter: blur(25px);
+      z-index: 300;
+      box-shadow: -8px 0 30px rgba(0, 0, 0, 0.6);
+      transform: translateX(105%);
+      transition: transform 0.4s ease;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid rgba(255, 255, 255, 0.2);
     }
+
     #observations-panel.open {
-        transform: translateX(0);
+      transform: translateX(0);
     }
 
-    #observations-panel .panel-header {
-        background: var(--vert-olive);
-        color: #fff;
-        padding: 16px 20px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-shrink: 0;
-    }
-    #observations-panel .panel-header h3 {
-        font-size: 1rem;
-        font-weight: 700;
-    }
-    #observations-panel .panel-header button {
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
-        color: #fff;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 1.1rem;
-        transition: var(--transition);
-    }
-    #observations-panel .panel-header button:hover {
-        background: rgba(255, 255, 255, 0.35);
+    .panel-header {
+      padding: 16px 20px;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #f5e7b3;
     }
 
-    #observations-panel .panel-list {
-        flex: 1;
-        overflow-y: auto;
-        padding: 10px;
-        -webkit-overflow-scrolling: touch;
+    .panel-header button {
+      background: none;
+      border: none;
+      color: #f5e7b3;
+      font-size: 1.2rem;
+      cursor: pointer;
     }
-    #observations-panel .panel-list .empty-state {
-        text-align: center;
-        color: #b0a590;
-        padding: 40px 20px;
-        font-style: italic;
+
+    .panel-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
     }
 
     .obs-card-mini {
-        background: #fff;
-        border-radius: var(--radius-petit);
-        padding: 14px 16px;
-        margin-bottom: 10px;
-        cursor: pointer;
-        border: 2px solid transparent;
-        transition: var(--transition);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    .obs-card-mini:hover {
-        border-color: var(--jaune-loriot);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-        transform: translateX(-3px);
-    }
-    .obs-card-mini .dot-indicator {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-    .obs-card-mini .dot-indicator.faible {
-        background: var(--vert-faible);
-    }
-    .obs-card-mini .dot-indicator.moyen {
-        background: var(--orange-moyen);
-    }
-    .obs-card-mini .dot-indicator.fort {
-        background: var(--rouge-doux);
-    }
-    .obs-card-mini .dot-indicator.inconnu {
-        background: var(--jaune-loriot);
-    }
-    .obs-card-mini .info {
-        flex: 1;
-        min-width: 0;
-    }
-    .obs-card-mini .info .title {
-        font-weight: 700;
-        font-size: 0.9rem;
-        color: #3D3226;
-    }
-    .obs-card-mini .info .sub {
-        font-size: 0.75rem;
-        color: #8B7E6A;
-    }
-    .obs-card-mini .chevron {
-        color: #c0b8a8;
-        font-size: 1.1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #e0e0c0;
     }
 
-    /* ============ FICHE D'OBSERVATION (Bottom Sheet) ============ */
     #observation-sheet {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 250;
-        background: var(--blanc-casse);
-        border-radius: 24px 24px 0 0;
-        box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.18);
-        transform: translateY(100%);
-        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        max-height: 65vh;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(18, 30, 18, 0.95);
+      backdrop-filter: blur(25px);
+      border-radius: 28px 28px 0 0;
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+      transform: translateY(100%);
+      transition: transform 0.4s ease;
+      max-height: 70vh;
+      z-index: 250;
+      display: flex;
+      flex-direction: column;
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+      color: #e0e0c0;
     }
+
     #observation-sheet.open {
-        transform: translateY(0);
+      transform: translateY(0);
     }
 
-    #observation-sheet .sheet-handle {
-        width: 40px;
-        height: 5px;
-        background: #d0c8b8;
-        border-radius: 10px;
-        margin: 12px auto 6px;
-        flex-shrink: 0;
+    .sheet-handle {
+      width: 40px;
+      height: 5px;
+      background: #5a7a4a;
+      border-radius: 10px;
+      margin: 12px auto 8px;
     }
 
-    #observation-sheet .sheet-header {
-        padding: 6px 20px 14px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-shrink: 0;
-    }
-    #observation-sheet .sheet-header h3 {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--vert-olive-fonce);
-    }
-    #observation-sheet .sheet-header .btn-close-sheet {
-        background: #f0ebe0;
-        border: none;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 1rem;
-        transition: var(--transition);
-        color: #6B5E4F;
-    }
-    #observation-sheet .sheet-header .btn-close-sheet:hover {
-        background: #e0d8c8;
+    .sheet-content {
+      padding: 0 20px 20px;
+      overflow-y: auto;
     }
 
-    #observation-sheet .sheet-content {
-        flex: 1;
-        overflow-y: auto;
-        padding: 0 20px 20px;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    /* Groupes de formulaire */
     .form-group {
-        margin-bottom: 16px;
+      margin-bottom: 18px;
     }
+
     .form-group label {
-        display: block;
-        font-weight: 700;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        color: var(--gris-doux);
-        margin-bottom: 6px;
-    }
-    .form-group select,
-    .form-group input[type="text"] {
-        width: 100%;
-        padding: 12px 14px;
-        border: 2px solid var(--beige-fonce);
-        border-radius: var(--radius-petit);
-        font-size: 0.95rem;
-        font-family: var(--font-principale);
-        background: #fff;
-        color: #3D3226;
-        transition: var(--transition);
-        outline: none;
-        -webkit-appearance: none;
-        appearance: none;
-    }
-    .form-group select:focus,
-    .form-group input[type="text"]:focus {
-        border-color: var(--jaune-loriot);
-        box-shadow: 0 0 0 4px rgba(245, 211, 74, 0.15);
-    }
-    .form-group select {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B5E4F' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 14px center;
-        padding-right: 36px;
-        cursor: pointer;
+      font-weight: 700;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #b9cfa8;
     }
 
-    /* Météo */
+    select, input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      font-size: 0.95rem;
+    }
+
     .weather-options {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
+      display: flex;
+      gap: 10px;
     }
+
     .weather-btn {
-        flex: 1;
-        min-width: 70px;
-        padding: 12px 8px;
-        border: 2px solid var(--beige-fonce);
-        border-radius: var(--radius-petit);
-        background: #fff;
-        cursor: pointer;
-        text-align: center;
-        font-size: 1.6rem;
-        transition: var(--transition);
-        font-family: var(--font-principale);
-        line-height: 1;
+      flex: 1;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1.8rem;
+      text-align: center;
     }
-    .weather-btn:hover {
-        border-color: var(--jaune-loriot);
-        background: #fffdf5;
-    }
+
     .weather-btn.selected {
-        border-color: var(--jaune-loriot-fonce);
-        background: var(--jaune-loriot-clair);
-        box-shadow: 0 0 0 4px rgba(245, 211, 74, 0.2);
-        transform: scale(1.03);
-    }
-    .weather-btn .weather-label {
-        display: block;
-        font-size: 0.65rem;
-        font-weight: 600;
-        margin-top: 2px;
-        color: #6B5E4F;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
+      border-color: #f5d742;
+      box-shadow: 0 0 15px #f5d742;
+      background: rgba(245, 215, 66, 0.2);
     }
 
-    /* Galerie photo */
     .photo-gallery {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        align-items: flex-end;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
     }
+
     .photo-thumb {
-        width: 70px;
-        height: 70px;
-        border-radius: var(--radius-petit);
-        object-fit: cover;
-        border: 2px solid var(--beige-fonce);
-        background: #e8e4da;
-        cursor: pointer;
-        transition: var(--transition);
-        position: relative;
-        flex-shrink: 0;
+      width: 65px;
+      height: 65px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
     }
-    .photo-thumb:hover {
-        border-color: var(--jaune-loriot);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-    }
+
     .photo-thumb-wrapper {
-        position: relative;
-        display: inline-block;
-        flex-shrink: 0;
-    }
-    .photo-thumb-wrapper .btn-delete-photo {
-        position: absolute;
-        top: -8px;
-        right: -8px;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: #e74c3c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-        font-size: 0.7rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: var(--transition);
-        z-index: 2;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    }
-    .photo-thumb-wrapper .btn-delete-photo:hover {
-        background: #c0392b;
-        transform: scale(1.1);
+      position: relative;
+      display: inline-block;
     }
 
-    .btn-add-photo {
-        width: 70px;
-        height: 70px;
-        border-radius: var(--radius-petit);
-        border: 2px dashed #c0b8a8;
-        background: #faf9f6;
-        cursor: pointer;
-        font-size: 2rem;
-        color: #b0a590;
-        transition: var(--transition);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .btn-add-photo:hover {
-        border-color: var(--jaune-loriot);
-        color: var(--jaune-loriot-fonce);
-        background: #fffdf5;
+    .photo-thumb-wrapper button {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #e74c3c;
+      color: white;
+      border: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      cursor: pointer;
     }
 
-    /* Boutons d'action */
-    .sheet-actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 8px;
-        flex-shrink: 0;
-        padding: 0 20px 20px;
-    }
     .btn-save {
-        flex: 1;
-        padding: 14px 20px;
-        background: var(--jaune-loriot);
-        color: #3D3226;
-        border: none;
-        border-radius: var(--radius-petit);
-        font-weight: 700;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: var(--transition);
-        font-family: var(--font-principale);
-        letter-spacing: 0.3px;
-    }
-    .btn-save:hover {
-        background: var(--jaune-loriot-fonce);
-        color: #fff;
-        box-shadow: 0 4px 16px rgba(212, 168, 32, 0.35);
-    }
-    .btn-save:active {
-        transform: scale(0.95);
-    }
-    .btn-delete {
-        padding: 14px 18px;
-        background: #fff;
-        color: var(--rouge-doux);
-        border: 2px solid #e8d0d0;
-        border-radius: var(--radius-petit);
-        font-weight: 600;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: var(--transition);
-        font-family: var(--font-principale);
-    }
-    .btn-delete:hover {
-        background: #fef5f5;
-        border-color: var(--rouge-doux);
-    }
-    .btn-delete:active {
-        transform: scale(0.95);
-    }
-    .btn-delete.hidden {
-        display: none;
+      background: #f5d742;
+      color: #1a2e1a;
+      border: none;
+      padding: 14px 20px;
+      border-radius: 14px;
+      font-weight: 700;
+      width: 100%;
+      cursor: pointer;
+      margin-top: 8px;
     }
 
-    /* ============ OVERLAY DE FOND ============ */
-    #sheet-backdrop {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.35);
-        z-index: 240;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.35s ease;
-    }
-    #sheet-backdrop.active {
-        opacity: 1;
-        pointer-events: auto;
+    .btn-delete-obs {
+      background: #c0392b;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 12px;
+      width: 100%;
+      margin-top: 8px;
+      cursor: pointer;
+      display: none;
     }
 
-    /* ============ TOAST ============ */
+    .btn-delete-obs.visible {
+      display: block;
+    }
+
     .toast {
-        position: fixed;
-        bottom: 90px;
-        left: 50%;
-        transform: translateX(-50%) translateY(20px);
-        background: #3D3226;
-        color: #fff;
-        padding: 10px 22px;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 0.85rem;
-        z-index: 9999;
-        opacity: 0;
-        pointer-events: none;
-        transition: all 0.3s ease;
-        box-shadow: var(--ombre-forte);
-        letter-spacing: 0.3px;
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #000000cc;
+      color: #f5d742;
+      padding: 10px 24px;
+      border-radius: 30px;
+      z-index: 9999;
+      opacity: 0;
+      transition: 0.3s;
+      pointer-events: none;
     }
+
     .toast.show {
-        opacity: 1;
+      opacity: 1;
+    }
+
+    #sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 240;
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.3s;
+    }
+
+    #sheet-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Adaptation PC / tablette */
+    @media (min-width: 768px) {
+      #observation-sheet {
+        max-width: 500px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100%);
+      }
+      #observation-sheet.open {
         transform: translateX(-50%) translateY(0);
+      }
     }
-
-    /* ============ RESPONSIVE : SMARTPHONE (<768px) ============ */
-    /* Les valeurs de base sont déjà pour smartphone */
-    @media (max-width: 480px) {
-        .security-card {
-            padding: 30px 20px 28px;
-            border-radius: 20px;
-        }
-        .security-card h1 {
-            font-size: 1.3rem;
-        }
-        .fab {
-            width: 48px;
-            height: 48px;
-            font-size: 1.3rem;
-        }
-        .fab-container {
-            bottom: 14px;
-            right: 10px;
-            gap: 10px;
-        }
-        #observation-sheet {
-            max-height: 60vh;
-            border-radius: 20px 20px 0 0;
-        }
-        #observation-sheet .sheet-content {
-            padding: 0 14px 14px;
-        }
-        .sheet-actions {
-            padding: 0 14px 14px;
-        }
-        #top-bar {
-            padding: 10px 12px;
-            min-height: 48px;
-        }
-        #top-bar .app-title {
-            font-size: 0.85rem;
-        }
-    }
-
-    /* ============ RESPONSIVE : TABLETTE (768px - 1023px) ============ */
-    @media (min-width: 768px) and (max-width: 1023px) {
-        #observations-panel {
-            width: 380px;
-            max-width: 45vw;
-        }
-        #observation-sheet {
-            max-width: 520px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100%);
-            border-radius: 24px 24px 0 0;
-            bottom: 0;
-            right: auto;
-        }
-        #observation-sheet.open {
-            transform: translateX(-50%) translateY(0);
-        }
-        .fab-container {
-            bottom: 24px;
-            right: 20px;
-        }
-        .fab {
-            width: 58px;
-            height: 58px;
-            font-size: 1.6rem;
-        }
-        #top-bar {
-            padding: 14px 20px;
-            min-height: 60px;
-        }
-        #top-bar .app-title {
-            font-size: 1.05rem;
-        }
-    }
-
-    /* ============ RESPONSIVE : PC / GRANDS ÉCRANS (≥1024px) ============ */
-    @media (min-width: 1024px) {
-        #observations-panel {
-            width: 400px;
-            max-width: 35vw;
-        }
-        #observation-sheet {
-            max-width: 640px;
-            max-height: 70vh;
-            left: 50%;
-            transform: translateX(-50%) translateY(100%);
-            border-radius: 24px 24px 0 0;
-            bottom: 0;
-            right: auto;
-        }
-        #observation-sheet.open {
-            transform: translateX(-50%) translateY(0);
-        }
-        .fab-container {
-            bottom: 28px;
-            right: 28px;
-            gap: 16px;
-        }
-        .fab {
-            width: 64px;
-            height: 64px;
-            font-size: 1.8rem;
-        }
-        #top-bar {
-            padding: 16px 28px;
-            min-height: 68px;
-        }
-        #top-bar .app-title {
-            font-size: 1.15rem;
-        }
-        #top-bar .btn-geoloc {
-            width: 42px;
-            height: 42px;
-            font-size: 1.3rem;
-        }
-        .security-card {
-            max-width: 460px;
-            padding: 50px 40px 45px;
-        }
-        .security-card h1 {
-            font-size: 1.7rem;
-        }
-        .form-group label {
-            font-size: 0.85rem;
-        }
-        .form-group select,
-        .form-group input[type="text"] {
-            padding: 14px 16px;
-            font-size: 1rem;
-        }
-    }
-
-    /* Style Leaflet - adaptation couleurs */
-    .leaflet-container {
-        background: #e8e4da !important;
-    }
-    .leaflet-control-zoom a {
-        border-radius: 8px !important;
-        color: var(--vert-olive) !important;
-    }
-</style>
+  </style>
 </head>
 <body>
+  <!-- Badge hors-ligne -->
+  <div id="offline-badge">📡 Vous êtes hors ligne</div>
 
-    <!-- ==================== ÉCRAN DE SÉCURITÉ ==================== -->
-    <div id="security-overlay">
-        <div class="security-card">
-            <span class="icon-bird">🕊️</span>
-            <h1>Observatoire du Loriot d'Europe</h1>
-            <p class="subtitle">Application réservée aux observateurs agréés</p>
-            <label for="secret-code">Code d'accès</label>
-            <div class="input-wrapper">
-                <input type="password" id="secret-code" placeholder="••••••" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-                <button id="btn-unlock" type="button">🔓 Accéder</button>
-            </div>
-            <p class="error-msg" id="login-error"></p>
-        </div>
-        <span class="security-footer">© Observatoire Ornithologique · Loriot d'Europe</span>
+  <!-- Lucioles de fond -->
+  <div class="fireflies" id="fireflies-container"></div>
+
+  <!-- APPLICATION PRINCIPALE (directement visible) -->
+  <div id="app-container">
+    <div id="top-bar">
+      <span class="app-title"><span>🕊️</span> Loriot d'Europe</span>
+      <span class="obs-count" id="obs-count-badge">0 zone(s)</span>
+      <button class="btn-geoloc" id="btn-geoloc">📍</button>
     </div>
 
-    <!-- ==================== APPLICATION PRINCIPALE ==================== -->
-    <div id="app-container">
-        <!-- Barre supérieure -->
-        <div id="top-bar">
-            <span class="app-title"><span class="emoji">🕊️</span> Loriot d'Europe</span>
-            <span class="obs-count" id="obs-count-badge">0 zone(s)</span>
-            <button class="btn-geoloc" id="btn-geoloc" title="Me localiser">📍</button>
-        </div>
-
-        <!-- Carte -->
-        <div id="map-container">
-            <div id="map"></div>
-            <div id="drawing-indicator">🎯 Cliquez sur la carte pour placer un rond d'observation</div>
-        </div>
-
-        <!-- Overlay de fond pour la fiche -->
-        <div id="sheet-backdrop"></div>
-
-        <!-- Fiche d'observation (Bottom Sheet) -->
-        <div id="observation-sheet">
-            <div class="sheet-handle"></div>
-            <div class="sheet-header">
-                <h3 id="sheet-title">📋 Nouvelle observation</h3>
-                <button class="btn-close-sheet" id="btn-close-sheet">✕</button>
-            </div>
-            <div class="sheet-content" id="sheet-content">
-                <!-- Indice de nidification -->
-                <div class="form-group">
-                    <label for="nesting-index">🌿 Indice de nidification</label>
-                    <select id="nesting-index">
-                        <option value="">-- Sélectionner --</option>
-                        <option value="faible">Chant seul (Faible)</option>
-                        <option value="moyen">Cris d'alarme (Moyen)</option>
-                        <option value="fort">Transport de matériaux / Couple (Fort)</option>
-                    </select>
-                </div>
-
-                <!-- Météo -->
-                <div class="form-group">
-                    <label>🌤️ Météo (optionnel)</label>
-                    <div class="weather-options" id="weather-options">
-                        <button class="weather-btn" data-weather="soleil">☀️<span class="weather-label">Soleil</span></button>
-                        <button class="weather-btn" data-weather="nuage">☁️<span class="weather-label">Nuage</span></button>
-                        <button class="weather-btn" data-weather="pluie">🌧️<span class="weather-label">Pluie</span></button>
-                    </div>
-                </div>
-
-                <!-- Galerie Photo -->
-                <div class="form-group">
-                    <label>📸 Galerie Photo (paysage / arbre)</label>
-                    <div class="photo-gallery" id="photo-gallery">
-                        <button class="btn-add-photo" id="btn-add-photo" title="Ajouter une photo">+</button>
-                    </div>
-                    <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none;">
-                </div>
-            </div>
-            <div class="sheet-actions">
-                <button class="btn-delete hidden" id="btn-delete-obs">🗑️ Supprimer</button>
-                <button class="btn-save" id="btn-save-obs">💾 Enregistrer</button>
-            </div>
-        </div>
-
-        <!-- Panneau liste des observations -->
-        <div id="observations-panel">
-            <div class="panel-header">
-                <h3>📋 Toutes les zones</h3>
-                <button id="btn-close-panel">✕</button>
-            </div>
-            <div class="panel-list" id="panel-list">
-                <p class="empty-state">Aucune observation pour le moment.<br>Créez votre premier rond !</p>
-            </div>
-        </div>
-
-        <!-- Boutons flottants -->
-        <div class="fab-container">
-            <button class="fab fab-draw" id="fab-draw" title="Dessiner un rond d'observation">⭕</button>
-            <button class="fab fab-list" id="fab-list" title="Liste des observations">📋</button>
-        </div>
-
-        <!-- Toast -->
-        <div class="toast" id="toast"></div>
+    <div id="map-container">
+      <div id="map"></div>
+      <div class="drawing-indicator" id="drawing-indicator">🎯 Cliquez pour placer une zone</div>
     </div>
 
-    <script>
-        (function() {
-            // ==================== CONSTANTES ====================
-            const SECRET_CODE = 'loriot';
-            const STORAGE_KEY = 'loriot_observations';
-            const DEFAULT_RADIUS = 150; // mètres
-            const DEFAULT_CENTER = [46.603354, 1.888334]; // Centre de la France
-            const DEFAULT_ZOOM = 6;
-            const MAX_PHOTOS = 5;
-            const PHOTO_MAX_DIM = 600; // px max pour compression
+    <div id="observations-panel">
+      <div class="panel-header">
+        <h3>📋 Zones</h3>
+        <button id="btn-close-panel">✕</button>
+      </div>
+      <div class="panel-list" id="panel-list"></div>
+    </div>
 
-            // ==================== ÉTAT GLOBAL ====================
-            let map;
-            let observations = []; // { id, lat, lng, radius, nestingIndex, weather, photos: [], timestamp }
-            let mapCircles = {}; // id -> L.circle
-            let isDrawingMode = false;
-            let currentEditingId = null; // null = nouvelle observation
-            let selectedWeather = null;
-            let tempPhotos = []; // Base64 strings pour l'édition en cours
-            let drawingPreviewCircle = null;
+    <div id="observation-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-content">
+        <div class="form-group">
+          <label>🌿 Indice de nidification</label>
+          <select id="nesting-index">
+            <option value="">-- Sélectionner --</option>
+            <option value="faible">Chant seul (Faible)</option>
+            <option value="moyen">Cris d'alarme (Moyen)</option>
+            <option value="fort">Transport/Couple (Fort)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>🌤️ Météo</label>
+          <div class="weather-options" id="weather-options">
+            <button class="weather-btn" data-weather="soleil">☀️</button>
+            <button class="weather-btn" data-weather="nuage">☁️</button>
+            <button class="weather-btn" data-weather="pluie">🌧️</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>📸 Photos</label>
+          <div class="photo-gallery" id="photo-gallery">
+            <button id="btn-add-photo" class="weather-btn" style="font-size:2rem;">+</button>
+          </div>
+          <input type="file" id="photo-input" accept="image/*" capture="environment" hidden>
+        </div>
+        <button class="btn-save" id="btn-save-obs">💾 Enregistrer</button>
+        <button class="btn-delete-obs" id="btn-delete-obs">🗑️ Supprimer</button>
+      </div>
+    </div>
 
-            // ==================== RÉFÉRENCES DOM ====================
-            const $securityOverlay = document.getElementById('security-overlay');
-            const $secretCode = document.getElementById('secret-code');
-            const $btnUnlock = document.getElementById('btn-unlock');
-            const $loginError = document.getElementById('login-error');
-            const $appContainer = document.getElementById('app-container');
-            const $mapContainer = document.getElementById('map-container');
-            const $map = document.getElementById('map');
-            const $drawingIndicator = document.getElementById('drawing-indicator');
-            const $obsCountBadge = document.getElementById('obs-count-badge');
-            const $btnGeoloc = document.getElementById('btn-geoloc');
-            const $fabDraw = document.getElementById('fab-draw');
-            const $fabList = document.getElementById('fab-list');
-            const $observationSheet = document.getElementById('observation-sheet');
-            const $sheetTitle = document.getElementById('sheet-title');
-            const $sheetContent = document.getElementById('sheet-content');
-            const $sheetBackdrop = document.getElementById('sheet-backdrop');
-            const $btnCloseSheet = document.getElementById('btn-close-sheet');
-            const $btnSaveObs = document.getElementById('btn-save-obs');
-            const $btnDeleteObs = document.getElementById('btn-delete-obs');
-            const $nestingIndex = document.getElementById('nesting-index');
-            const $weatherOptions = document.getElementById('weather-options');
-            const $photoGallery = document.getElementById('photo-gallery');
-            const $btnAddPhoto = document.getElementById('btn-add-photo');
-            const $photoInput = document.getElementById('photo-input');
-            const $observationsPanel = document.getElementById('observations-panel');
-            const $panelList = document.getElementById('panel-list');
-            const $btnClosePanel = document.getElementById('btn-close-panel');
-            const $toast = document.getElementById('toast');
+    <div class="fab-container">
+      <button class="fab fab-draw" id="fab-draw">⭕</button>
+      <button class="fab fab-list" id="fab-list">📋</button>
+    </div>
+    <div class="toast" id="toast"></div>
+    <div id="sheet-backdrop"></div>
+  </div>
 
-            // ==================== FONCTIONS UTILITAIRES ====================
-            function showToast(message, duration = 2200) {
-                $toast.textContent = message;
-                $toast.classList.add('show');
-                clearTimeout($toast._timeout);
-                $toast._timeout = setTimeout(() => {
-                    $toast.classList.remove('show');
-                }, duration);
+  <!-- Leaflet JS via CDN (sera mis en cache) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Service Worker pour le mode hors ligne -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {
+        // Fallback : enregistrement inline si /sw.js n'existe pas
+        const swCode = `
+          const CACHE_NAME = 'loriot-v3';
+          const urlsToCache = [
+            '/',
+            'index.html',
+            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+            'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+            'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+          ];
+
+          self.addEventListener('install', event => {
+            event.waitUntil(
+              caches.open(CACHE_NAME)
+                .then(cache => cache.addAll(urlsToCache))
+                .then(() => self.skipWaiting())
+            );
+          });
+
+          self.addEventListener('activate', event => {
+            event.waitUntil(
+              caches.keys().then(keys => Promise.all(
+                keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+              )).then(() => self.clients.claim())
+            );
+          });
+
+          self.addEventListener('fetch', event => {
+            if (event.request.method !== 'GET') return;
+            event.respondWith(
+              caches.match(event.request).then(cached => {
+                const networked = fetch(event.request).then(response => {
+                  if (response && response.status === 200) {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                  }
+                  return response;
+                }).catch(() => cached);
+                return cached || networked;
+              })
+            );
+          });
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(swUrl);
+      });
+    }
+  </script>
+
+  <!-- Application principale -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // ---------- LUCIOLES ----------
+      const ffContainer = document.getElementById('fireflies-container');
+      for (let i = 0; i < 25; i++) {
+        const ff = document.createElement('div');
+        ff.className = 'firefly';
+        ff.style.left = Math.random() * 100 + '%';
+        ff.style.top = Math.random() * 100 + '%';
+        ff.style.animationDuration = (Math.random() * 6 + 4) + 's';
+        ff.style.animationDelay = Math.random() * 5 + 's';
+        ffContainer.appendChild(ff);
+      }
+
+      // ---------- ÉTAT GLOBAL ----------
+      const STORAGE_KEY = 'loriot_obs_v3';
+      let observations = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      let map, mapCircles = {};
+      let isDrawing = false;
+      let currentEditId = null;
+      let tempPhotos = [];
+      let selectedWeather = null;
+
+      // ---------- DOM ----------
+      const $obsCount = document.getElementById('obs-count-badge');
+      const $mapEl = document.getElementById('map');
+      const $drawInd = document.getElementById('drawing-indicator');
+      const $fabDraw = document.getElementById('fab-draw');
+      const $fabList = document.getElementById('fab-list');
+      const $panel = document.getElementById('observations-panel');
+      const $panelList = document.getElementById('panel-list');
+      const $sheet = document.getElementById('observation-sheet');
+      const $backdrop = document.getElementById('sheet-backdrop');
+      const $nestingSelect = document.getElementById('nesting-index');
+      const $weatherOpts = document.getElementById('weather-options');
+      const $photoGallery = document.getElementById('photo-gallery');
+      const $btnAddPhoto = document.getElementById('btn-add-photo');
+      const $photoInput = document.getElementById('photo-input');
+      const $btnSave = document.getElementById('btn-save-obs');
+      const $btnDelete = document.getElementById('btn-delete-obs');
+      const $toast = document.getElementById('toast');
+      const $offlineBadge = document.getElementById('offline-badge');
+
+      // Gestion réseau
+      function updateOnlineStatus() {
+        if (navigator.onLine) {
+          $offlineBadge.classList.remove('show');
+        } else {
+          $offlineBadge.classList.add('show');
+        }
+      }
+      window.addEventListener('online', updateOnlineStatus);
+      window.addEventListener('offline', updateOnlineStatus);
+      updateOnlineStatus();
+
+      // Toast
+      function toast(msg) {
+        $toast.textContent = msg;
+        $toast.classList.add('show');
+        clearTimeout($toast._t);
+        $toast._t = setTimeout(() => $toast.classList.remove('show'), 2200);
+      }
+
+      function saveData() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
+      }
+
+      function getColor(idx) {
+        switch(idx) {
+          case 'faible': return {fill:'#7CB342', stroke:'#558B2F'};
+          case 'moyen': return {fill:'#E67E22', stroke:'#BF5F0A'};
+          case 'fort': return {fill:'#C0392B', stroke:'#922B21'};
+          default: return {fill:'#f5d742', stroke:'#d4a820'};
+        }
+      }
+
+      // ---------- CARTE ----------
+      function initMap() {
+        map = L.map('map', {
+          center: [46.603354, 1.888334],
+          zoom: 6,
+          zoomControl: true
+        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap',
+          maxZoom: 19
+        }).addTo(map);
+
+        map.on('click', (e) => {
+          if (!isDrawing) return;
+          const obs = {
+            id: 'obs_'+Date.now(),
+            lat: e.latlng.lat,
+            lng: e.latlng.lng,
+            radius: 150,
+            nestingIndex: '',
+            weather: null,
+            photos: [],
+            timestamp: Date.now()
+          };
+          observations.push(obs);
+          saveData();
+          drawCircle(obs);
+          setDrawingMode(false);
+          openSheet(obs.id);
+          toast('✅ Zone créée');
+        });
+
+        rebuildCircles();
+      }
+
+      function drawCircle(obs) {
+        const col = getColor(obs.nestingIndex);
+        const circle = L.circle([obs.lat, obs.lng], {
+          radius: obs.radius,
+          color: col.stroke,
+          fillColor: col.fill,
+          fillOpacity: 0.35,
+          weight: 2.5
+        }).addTo(map);
+        circle.bindPopup(`<b>Zone</b><br>${obs.nestingIndex || 'Nouveau'}`);
+        circle.on('click', () => { if(!isDrawing) openSheet(obs.id); });
+        mapCircles[obs.id] = circle;
+      }
+
+      function rebuildCircles() {
+        Object.values(mapCircles).forEach(c => map.removeLayer(c));
+        mapCircles = {};
+        observations.forEach(drawCircle);
+        updateCount();
+        refreshPanel();
+      }
+
+      function setDrawingMode(on) {
+        isDrawing = on;
+        $fabDraw.classList.toggle('active', on);
+        $drawInd.classList.toggle('active', on);
+        if (on) { closeSheet(); closePanel(); }
+      }
+
+      // ---------- FICHE ----------
+      function openSheet(id) {
+        currentEditId = id;
+        const obs = observations.find(o => o.id === id);
+        if (!obs) return;
+        $nestingSelect.value = obs.nestingIndex || '';
+        selectedWeather = obs.weather;
+        tempPhotos = [...(obs.photos || [])];
+        updateWeatherUI();
+        renderPhotos();
+        $btnDelete.classList.add('visible');
+        $sheet.classList.add('open');
+        $backdrop.classList.add('active');
+        map.setView([obs.lat, obs.lng], 15);
+      }
+
+      function closeSheet() {
+        $sheet.classList.remove('open');
+        $backdrop.classList.remove('active');
+        currentEditId = null;
+        $btnDelete.classList.remove('visible');
+      }
+
+      function updateWeatherUI() {
+        document.querySelectorAll('.weather-btn[data-weather]').forEach(b => {
+          b.classList.toggle('selected', b.dataset.weather === selectedWeather);
+        });
+      }
+
+      function renderPhotos() {
+        $photoGallery.querySelectorAll('.photo-thumb-wrapper').forEach(e => e.remove());
+        tempPhotos.forEach((b64, idx) => {
+          const wrap = document.createElement('div');
+          wrap.className = 'photo-thumb-wrapper';
+          const img = document.createElement('img');
+          img.className = 'photo-thumb';
+          img.src = b64;
+          const del = document.createElement('button');
+          del.textContent = '✕';
+          del.addEventListener('click', (e) => {
+            e.stopPropagation();
+            tempPhotos.splice(idx,1);
+            renderPhotos();
+          });
+          wrap.appendChild(img);
+          wrap.appendChild(del);
+          $photoGallery.insertBefore(wrap, $btnAddPhoto);
+        });
+      }
+
+      $btnSave.addEventListener('click', () => {
+        if (!currentEditId) return;
+        const obs = observations.find(o => o.id === currentEditId);
+        obs.nestingIndex = $nestingSelect.value;
+        obs.weather = selectedWeather;
+        obs.photos = [...tempPhotos];
+        saveData();
+        if (mapCircles[obs.id]) {
+          map.removeLayer(mapCircles[obs.id]);
+          drawCircle(obs);
+        }
+        updateCount();
+        refreshPanel();
+        closeSheet();
+        toast('💾 Observation enregistrée');
+      });
+
+      $btnDelete.addEventListener('click', () => {
+        if (!currentEditId || !confirm('Supprimer définitivement ?')) return;
+        observations = observations.filter(o => o.id !== currentEditId);
+        saveData();
+        if (mapCircles[currentEditId]) map.removeLayer(mapCircles[currentEditId]);
+        updateCount();
+        refreshPanel();
+        closeSheet();
+        toast('🗑️ Zone supprimée');
+      });
+
+      // Météo
+      $weatherOpts.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-weather]');
+        if (!btn) return;
+        selectedWeather = btn.dataset.weather === selectedWeather ? null : btn.dataset.weather;
+        updateWeatherUI();
+      });
+
+      // Photo
+      $btnAddPhoto.addEventListener('click', () => $photoInput.click());
+      $photoInput.addEventListener('change', async () => {
+        const file = $photoInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const max = 600;
+            let w = img.width, h = img.height;
+            if (w > max || h > max) {
+              const r = Math.min(max/w, max/h);
+              w *= r; h *= r;
             }
-
-            function generateId() {
-                return 'obs_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-            }
-
-            function loadObservations() {
-                try {
-                    const raw = localStorage.getItem(STORAGE_KEY);
-                    observations = raw ? JSON.parse(raw) : [];
-                    if (!Array.isArray(observations)) observations = [];
-                } catch (e) {
-                    console.error('Erreur chargement localStorage:', e);
-                    observations = [];
-                }
-            }
-
-            function saveObservations() {
-                try {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
-                } catch (e) {
-                    console.error('Erreur sauvegarde localStorage:', e);
-                    showToast('⚠️ Stockage saturé ! Supprimez des observations ou des photos.');
-                }
-            }
-
-            function getCircleColor(nestingIndex) {
-                switch (nestingIndex) {
-                    case 'faible':
-                        return { fill: '#7CB342', stroke: '#558B2F', fillOpacity: 0.3 };
-                    case 'moyen':
-                        return { fill: '#E67E22', stroke: '#BF5F0A', fillOpacity: 0.35 };
-                    case 'fort':
-                        return { fill: '#C0392B', stroke: '#922B21', fillOpacity: 0.4 };
-                    default:
-                        return { fill: '#F5D34A', stroke: '#D4A820', fillOpacity: 0.3 };
-                }
-            }
-
-            function getNestingLabel(value) {
-                switch (value) {
-                    case 'faible':
-                        return 'Chant seul (Faible)';
-                    case 'moyen':
-                        return 'Cris d'alarme (Moyen)';
-                    case 'fort':
-                        return 'Transport/Couple (Fort)';
-                    default:
-                        return 'Non renseigné';
-                }
-            }
-
-            function getWeatherEmoji(value) {
-                switch (value) {
-                    case 'soleil':
-                        return '☀️';
-                    case 'nuage':
-                        return '☁️';
-                    case 'pluie':
-                        return '🌧️';
-                    default:
-                        return '';
-                }
-            }
-
-            // ==================== COMPRESSION PHOTO ====================
-            function compressImage(file) {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const img = new Image();
-                        img.onload = function() {
-                            const canvas = document.createElement('canvas');
-                            let w = img.width;
-                            let h = img.height;
-                            const maxDim = PHOTO_MAX_DIM;
-                            if (w > maxDim || h > maxDim) {
-                                const ratio = Math.min(maxDim / w, maxDim / h);
-                                w = Math.round(w * ratio);
-                                h = Math.round(h * ratio);
-                            }
-                            canvas.width = w;
-                            canvas.height = h;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0, w, h);
-                            const base64 = canvas.toDataURL('image/jpeg', 0.6);
-                            resolve(base64);
-                        };
-                        img.onerror = reject;
-                        img.src = e.target.result;
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
-            }
-
-            // ==================== CARTOGRAPHIE ====================
-            function initMap() {
-                map = L.map('map', {
-                    center: DEFAULT_CENTER,
-                    zoom: DEFAULT_ZOOM,
-                    zoomControl: true,
-                    attributionControl: true,
-                });
-
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-                    maxZoom: 19,
-                }).addTo(map);
-
-                // Invalider la taille après affichage
-                setTimeout(() => map.invalidateSize(), 300);
-
-                // Reconstruire les cercles existants
-                rebuildAllCircles();
-
-                // Gestion du clic sur la carte (mode dessin)
-                map.on('click', function(e) {
-                    if (!isDrawingMode) return;
-                    handleMapClickForDrawing(e.latlng);
-                });
-            }
-
-            function rebuildAllCircles() {
-                // Nettoyer les anciens cercles
-                Object.values(mapCircles).forEach(c => map.removeLayer(c));
-                mapCircles = {};
-
-                observations.forEach(obs => {
-                    createCircleOnMap(obs);
-                });
-                updateObsCount();
-                refreshPanelList();
-            }
-
-            function createCircleOnMap(obs) {
-                const colors = getCircleColor(obs.nestingIndex);
-                const circle = L.circle([obs.lat, obs.lng], {
-                    radius: obs.radius || DEFAULT_RADIUS,
-                    color: colors.stroke,
-                    fillColor: colors.fill,
-                    fillOpacity: colors.fillOpacity,
-                    weight: 2.5,
-                    dashArray: obs.nestingIndex ? null : '6 4',
-                }).addTo(map);
-
-                // Popup rapide
-                const nestingLabel = getNestingLabel(obs.nestingIndex);
-                const weatherEmoji = getWeatherEmoji(obs.weather);
-                const photoCount = obs.photos ? obs.photos.length : 0;
-                circle.bindPopup(`
-                    <div style="font-family:var(--font-principale);min-width:140px;">
-                        <strong>🕊️ Zone d'observation</strong><br>
-                        <span style="font-size:0.8rem;">📌 ${nestingLabel}</span><br>
-                        <span style="font-size:0.8rem;">${weatherEmoji ? weatherEmoji + ' ' : ''}📸 ${photoCount} photo(s)</span><br>
-                        <small style="color:#8B7E6A;">Cliquez pour voir les détails</small>
-                    </div>
-                `, { maxWidth: 250 });
-
-                // Clic sur le cercle → ouvrir fiche d'édition
-                circle.on('click', function(ev) {
-                    if (isDrawingMode) {
-                        L.DomEvent.stopPropagation(ev);
-                        return;
-                    }
-                    openObservationSheet(obs.id);
-                    L.DomEvent.stopPropagation(ev);
-                });
-
-                enableCircleDrag(circle, obs.id);
-                mapCircles[obs.id] = circle;
-            }
-
-            function enableCircleDrag(circle, obsId) {
-                let dragStartLatLng = null;
-
-                circle.on('mousedown', function(e) {
-                    if (isDrawingMode) return;
-                    map.dragging.disable();
-                    dragStartLatLng = e.latlng;
-                    map.getContainer().style.cursor = 'grabbing';
-                });
-
-                const onMouseMove = function(e) {
-                    if (!dragStartLatLng) return;
-                    const newLatLng = e.latlng;
-                    circle.setLatLng(newLatLng);
-                };
-
-                const onMouseUp = function(e) {
-                    if (!dragStartLatLng) return;
-                    map.dragging.enable();
-                    map.getContainer().style.cursor = '';
-                    const finalLatLng = circle.getLatLng();
-                    dragStartLatLng = null;
-
-                    const obs = observations.find(o => o.id === obsId);
-                    if (obs) {
-                        obs.lat = finalLatLng.lat;
-                        obs.lng = finalLatLng.lng;
-                        saveObservations();
-                        showToast('📍 Position mise à jour');
-                    }
-                };
-
-                map.on('mousemove', onMouseMove);
-                map.on('mouseup', onMouseUp);
-
-                circle._dragCleanup = function() {
-                    map.off('mousemove', onMouseMove);
-                    map.off('mouseup', onMouseUp);
-                };
-            }
-
-            function handleMapClickForDrawing(latlng) {
-                const newObs = {
-                    id: generateId(),
-                    lat: latlng.lat,
-                    lng: latlng.lng,
-                    radius: DEFAULT_RADIUS,
-                    nestingIndex: '',
-                    weather: null,
-                    photos: [],
-                    timestamp: Date.now(),
-                };
-
-                observations.push(newObs);
-                saveObservations();
-                createCircleOnMap(newObs);
-
-                setDrawingMode(false);
-                openObservationSheet(newObs.id);
-                showToast('✅ Zone créée ! Remplissez les détails.');
-            }
-
-            function setDrawingMode(enabled) {
-                isDrawingMode = enabled;
-                if (enabled) {
-                    $fabDraw.classList.add('active');
-                    $fabDraw.textContent = '✕';
-                    $mapContainer.classList.add('drawing-mode');
-                    $drawingIndicator.classList.add('active');
-                    closeObservationSheet();
-                    closePanel();
-                } else {
-                    $fabDraw.classList.remove('active');
-                    $fabDraw.textContent = '⭕';
-                    $mapContainer.classList.remove('drawing-mode');
-                    $drawingIndicator.classList.remove('active');
-                }
-            }
-
-            // ==================== FICHE D'OBSERVATION ====================
-            function openObservationSheet(obsId) {
-                currentEditingId = obsId;
-                const obs = observations.find(o => o.id === obsId);
-                if (!obs) return;
-
-                $nestingIndex.value = obs.nestingIndex || '';
-                selectedWeather = obs.weather || null;
-                tempPhotos = [...(obs.photos || [])];
-
-                document.querySelectorAll('#weather-options .weather-btn').forEach(btn => {
-                    btn.classList.toggle('selected', btn.dataset.weather === selectedWeather);
-                });
-
-                renderPhotoGallery();
-
-                if (obs.nestingIndex) {
-                    $sheetTitle.textContent = '✏️ Modifier l\'observation';
-                } else {
-                    $sheetTitle.textContent = '📋 Nouvelle observation';
-                }
-
-                $btnDeleteObs.classList.remove('hidden');
-                $observationSheet.classList.add('open');
-                $sheetBackdrop.classList.add('active');
-
-                map.setView([obs.lat, obs.lng], Math.max(map.getZoom(), 15), { animate: true });
-            }
-
-            function closeObservationSheet() {
-                $observationSheet.classList.remove('open');
-                $sheetBackdrop.classList.remove('active');
-                currentEditingId = null;
-                selectedWeather = null;
-                tempPhotos = [];
-                $nestingIndex.value = '';
-                document.querySelectorAll('#weather-options .weather-btn').forEach(btn => btn.classList.remove(
-                    'selected'));
-                $btnDeleteObs.classList.add('hidden');
-                renderPhotoGallery();
-            }
-
-            function renderPhotoGallery() {
-                const existingAddBtn = $photoGallery.querySelector('#btn-add-photo');
-                $photoGallery.innerHTML = '';
-
-                tempPhotos.forEach((photoBase64, index) => {
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'photo-thumb-wrapper';
-
-                    const img = document.createElement('img');
-                    img.className = 'photo-thumb';
-                    img.src = photoBase64;
-                    img.alt = 'Photo ' + (index + 1);
-                    img.title = 'Photo ' + (index + 1);
-                    img.addEventListener('click', () => {
-                        const win = window.open('', '_blank');
-                        if (win) {
-                            win.document.write(
-                                `<img src="${photoBase64}" style="max-width:100%;max-height:100vh;">`);
-                        }
-                    });
-
-                    const btnDel = document.createElement('button');
-                    btnDel.className = 'btn-delete-photo';
-                    btnDel.textContent = '✕';
-                    btnDel.title = 'Supprimer cette photo';
-                    btnDel.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        tempPhotos.splice(index, 1);
-                        renderPhotoGallery();
-                    });
-
-                    wrapper.appendChild(img);
-                    wrapper.appendChild(btnDel);
-                    $photoGallery.appendChild(wrapper);
-                });
-
-                const addBtn = existingAddBtn || document.createElement('button');
-                addBtn.id = 'btn-add-photo';
-                addBtn.className = 'btn-add-photo';
-                addBtn.textContent = '+';
-                addBtn.title = 'Ajouter une photo';
-                if (!existingAddBtn) {
-                    addBtn.addEventListener('click', () => $photoInput.click());
-                }
-                if (tempPhotos.length >= MAX_PHOTOS) {
-                    addBtn.style.opacity = '0.4';
-                    addBtn.style.pointerEvents = 'none';
-                    addBtn.title = 'Maximum ' + MAX_PHOTOS + ' photos atteint';
-                } else {
-                    addBtn.style.opacity = '1';
-                    addBtn.style.pointerEvents = 'auto';
-                    addBtn.title = 'Ajouter une photo';
-                }
-                $photoGallery.appendChild(addBtn);
-            }
-
-            function saveCurrentObservation() {
-                if (!currentEditingId) return;
-                const obs = observations.find(o => o.id === currentEditingId);
-                if (!obs) return;
-
-                obs.nestingIndex = $nestingIndex.value;
-                obs.weather = selectedWeather;
-                obs.photos = [...tempPhotos];
-                obs.timestamp = Date.now();
-
-                saveObservations();
-
-                if (mapCircles[obs.id]) {
-                    const colors = getCircleColor(obs.nestingIndex);
-                    mapCircles[obs.id].setStyle({
-                        color: colors.stroke,
-                        fillColor: colors.fill,
-                        fillOpacity: colors.fillOpacity,
-                        dashArray: obs.nestingIndex ? null : '6 4',
-                    });
-                    const nestingLabel = getNestingLabel(obs.nestingIndex);
-                    const weatherEmoji = getWeatherEmoji(obs.weather);
-                    const photoCount = obs.photos.length;
-                    mapCircles[obs.id].setPopupContent(`
-                        <div style="font-family:var(--font-principale);min-width:140px;">
-                            <strong>🕊️ Zone d'observation</strong><br>
-                            <span style="font-size:0.8rem;">📌 ${nestingLabel}</span><br>
-                            <span style="font-size:0.8rem;">${weatherEmoji ? weatherEmoji + ' ' : ''}📸 ${photoCount} photo(s)</span><br>
-                            <small style="color:#8B7E6A;">Cliquez pour voir les détails</small>
-                        </div>
-                    `);
-                }
-
-                updateObsCount();
-                refreshPanelList();
-                closeObservationSheet();
-                showToast('💾 Observation enregistrée !');
-            }
-
-            function deleteCurrentObservation() {
-                if (!currentEditingId) return;
-                if (!confirm('Supprimer définitivement cette zone d\'observation ?')) return;
-
-                const obsId = currentEditingId;
-                observations = observations.filter(o => o.id !== obsId);
-                saveObservations();
-
-                if (mapCircles[obsId]) {
-                    if (mapCircles[obsId]._dragCleanup) {
-                        mapCircles[obsId]._dragCleanup();
-                    }
-                    map.removeLayer(mapCircles[obsId]);
-                    delete mapCircles[obsId];
-                }
-
-                updateObsCount();
-                refreshPanelList();
-                closeObservationSheet();
-                showToast('🗑️ Zone supprimée');
-            }
-
-            function updateObsCount() {
-                const count = observations.length;
-                $obsCountBadge.textContent = count + ' zone(s)';
-            }
-
-            // ==================== PANNEAU LISTE ====================
-            function refreshPanelList() {
-                $panelList.innerHTML = '';
-                if (observations.length === 0) {
-                    $panelList.innerHTML =
-                        '<p class="empty-state">Aucune observation pour le moment.<br>Créez votre premier rond !</p>';
-                    return;
-                }
-
-                const sorted = [...observations].sort((a, b) => b.timestamp - a.timestamp);
-
-                sorted.forEach(obs => {
-                    const card = document.createElement('div');
-                    card.className = 'obs-card-mini';
-                    const colors = getCircleColor(obs.nestingIndex);
-                    const dotClass = obs.nestingIndex || 'inconnu';
-                    const nestingLabel = getNestingLabel(obs.nestingIndex);
-                    const weatherEmoji = getWeatherEmoji(obs.weather);
-                    const photoCount = obs.photos ? obs.photos.length : 0;
-                    const dateStr = new Date(obs.timestamp).toLocaleDateString('fr-FR', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-
-                    card.innerHTML = `
-                        <span class="dot-indicator ${dotClass}" style="background:${colors.fill};border:2px solid ${colors.stroke};"></span>
-                        <div class="info">
-                            <div class="title">${nestingLabel}</div>
-                            <div class="sub">${weatherEmoji} 📸${photoCount} · ${dateStr}</div>
-                        </div>
-                        <span class="chevron">›</span>
-                    `;
-
-                    card.addEventListener('click', () => {
-                        closePanel();
-                        map.setView([obs.lat, obs.lng], Math.max(map.getZoom(), 15), { animate: true });
-                        setTimeout(() => openObservationSheet(obs.id), 400);
-                    });
-
-                    $panelList.appendChild(card);
-                });
-            }
-
-            function openPanel() {
-                $observationsPanel.classList.add('open');
-                refreshPanelList();
-            }
-
-            function closePanel() {
-                $observationsPanel.classList.remove('open');
-            }
-
-            // ==================== GÉOLOCALISATION ====================
-            function geolocateUser() {
-                if (!navigator.geolocation) {
-                    showToast('⚠️ Géolocalisation non supportée');
-                    return;
-                }
-                $btnGeoloc.textContent = '⏳';
-                $btnGeoloc.style.animation = 'pulse 0.8s ease-in-out infinite';
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        const { latitude, longitude } = pos.coords;
-                        map.setView([latitude, longitude], 16, { animate: true });
-                        showToast('📍 Position trouvée !');
-                        $btnGeoloc.textContent = '📍';
-                        $btnGeoloc.style.animation = '';
-                    },
-                    (err) => {
-                        console.error('Erreur géoloc:', err);
-                        showToast('⚠️ Impossible de vous localiser');
-                        $btnGeoloc.textContent = '📍';
-                        $btnGeoloc.style.animation = '';
-                    }, { timeout: 10000, enableHighAccuracy: true }
-                );
-            }
-
-            // ==================== ÉCRAN DE SÉCURITÉ ====================
-            function checkSecretCode() {
-                const input = $secretCode.value.trim();
-                if (input.toLowerCase() === SECRET_CODE) {
-                    $loginError.textContent = '';
-                    $securityOverlay.classList.add('hidden');
-                    $appContainer.classList.add('visible');
-                    setTimeout(() => {
-                        initMap();
-                        updateObsCount();
-                        refreshPanelList();
-                    }, 200);
-                } else {
-                    $loginError.textContent = '❌ Code incorrect. Veuillez réessayer.';
-                    $secretCode.value = '';
-                    $secretCode.focus();
-                    $securityOverlay.querySelector('.security-card').style.animation = 'none';
-                    void $securityOverlay.querySelector('.security-card').offsetWidth;
-                    $securityOverlay.querySelector('.security-card').style.animation =
-                        'shake 0.5s ease';
-                }
-            }
-
-            const shakeKeyframes = `
-                @keyframes shake {
-                    0%,100% { transform: translateX(0); }
-                    20% { transform: translateX(-8px); }
-                    40% { transform: translateX(8px); }
-                    60% { transform: translateX(-5px); }
-                    80% { transform: translateX(5px); }
-                }
-            `;
-            const shakeStyle = document.createElement('style');
-            shakeStyle.textContent = shakeKeyframes;
-            document.head.appendChild(shakeStyle);
-
-            // ==================== ÉVÉNEMENTS ====================
-            $btnUnlock.addEventListener('click', checkSecretCode);
-            $secretCode.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    checkSecretCode();
-                }
-            });
-
-            $fabDraw.addEventListener('click', function() {
-                setDrawingMode(!isDrawingMode);
-                if (isDrawingMode) {
-                    closeObservationSheet();
-                    closePanel();
-                }
-            });
-
-            $fabList.addEventListener('click', function() {
-                if ($observationsPanel.classList.contains('open')) {
-                    closePanel();
-                } else {
-                    openPanel();
-                    setDrawingMode(false);
-                    closeObservationSheet();
-                }
-            });
-
-            $btnClosePanel.addEventListener('click', closePanel);
-
-            $btnCloseSheet.addEventListener('click', closeObservationSheet);
-            $sheetBackdrop.addEventListener('click', closeObservationSheet);
-
-            $btnSaveObs.addEventListener('click', saveCurrentObservation);
-            $btnDeleteObs.addEventListener('click', deleteCurrentObservation);
-
-            $weatherOptions.addEventListener('click', function(e) {
-                const btn = e.target.closest('.weather-btn');
-                if (!btn) return;
-                const weatherVal = btn.dataset.weather;
-                if (selectedWeather === weatherVal) {
-                    selectedWeather = null;
-                } else {
-                    selectedWeather = weatherVal;
-                }
-                document.querySelectorAll('#weather-options .weather-btn').forEach(b => {
-                    b.classList.toggle('selected', b.dataset.weather === selectedWeather);
-                });
-            });
-
-            $btnAddPhoto.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (tempPhotos.length >= MAX_PHOTOS) {
-                    showToast('⚠️ Maximum ' + MAX_PHOTOS + ' photos par observation');
-                    return;
-                }
-                $photoInput.click();
-            });
-            $photoInput.addEventListener('change', async function() {
-                const file = $photoInput.files[0];
-                if (!file) return;
-                try {
-                    const base64 = await compressImage(file);
-                    tempPhotos.push(base64);
-                    renderPhotoGallery();
-                    showToast('📸 Photo ajoutée !');
-                } catch (err) {
-                    console.error('Erreur compression photo:', err);
-                    showToast('⚠️ Erreur lors du traitement de la photo');
-                }
-                $photoInput.value = '';
-            });
-
-            $btnGeoloc.addEventListener('click', geolocateUser);
-
-            window.addEventListener('resize', function() {
-                if (map) map.invalidateSize();
-            });
-
-            // ==================== INITIALISATION ====================
-            function init() {
-                loadObservations();
-                setTimeout(() => $secretCode.focus(), 400);
-            }
-
-            // ==================== PWA - MANIFEST DYNAMIQUE ====================
-            function setupPWA() {
-                const manifest = {
-                    name: 'Observatoire du Loriot d\'Europe',
-                    short_name: 'Loriot Europe',
-                    description: 'Application d\'observation ornithologique pour le Loriot d\'Europe',
-                    start_url: '.',
-                    display: 'standalone',
-                    background_color: '#F5F0E8',
-                    theme_color: '#6B7B3A',
-                    orientation: 'portrait-primary',
-                    icons: [{
-                        src: 'data:image/svg+xml,' + encodeURIComponent(
-                            '<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#6B7B3A"/><text x="96" y="115" text-anchor="middle" font-size="90">🕊️</text></svg>'
-                            ),
-                        sizes: '192x192',
-                        type: 'image/svg+xml',
-                        purpose: 'any maskable'
-                    }],
-                };
-
-                const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-                const manifestURL = URL.createObjectURL(blob);
-                const link = document.createElement('link');
-                link.rel = 'manifest';
-                link.href = manifestURL;
-                document.head.appendChild(link);
-
-                if ('serviceWorker' in navigator) {
-                    const swCode = `
-                        self.addEventListener('install', function(e) {
-                            self.skipWaiting();
-                        });
-                        self.addEventListener('activate', function(e) {
-                            e.waitUntil(clients.claim());
-                        });
-                        self.addEventListener('fetch', function(e) {
-                            e.respondWith(fetch(e.request).catch(function() {
-                                return new Response('Application hors ligne. Les données restent accessibles.', {
-                                    status: 200,
-                                    headers: { 'Content-Type': 'text/plain' }
-                                });
-                            }));
-                        });
-                    `;
-                    const swBlob = new Blob([swCode], { type: 'application/javascript' });
-                    const swURL = URL.createObjectURL(swBlob);
-                    navigator.serviceWorker.register(swURL, { scope: '/' })
-                        .then(() => console.log('✅ Service Worker PWA enregistré'))
-                        .catch(err => console.warn('⚠️ Service Worker non enregistré (blob URL):', err.message));
-                }
-            }
-
-            // ==================== DÉMARRAGE ====================
-            setupPWA();
-            init();
-
-            console.log('🕊️ Observatoire du Loriot d\'Europe - PWA initialisée (PC, tablette, smartphone)');
-            console.log('📋 Observations chargées:', observations.length);
-        })();
-    </script>
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img,0,0,w,h);
+            tempPhotos.push(canvas.toDataURL('image/jpeg', 0.6));
+            renderPhotos();
+            toast('📸 Photo ajoutée');
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+        $photoInput.value = '';
+      });
+
+      // Panneau
+      function refreshPanel() {
+        $panelList.innerHTML = observations.length === 0 
+          ? '<p style="padding:20px;color:#aaa;">Aucune zone d\'observation</p>'
+          : observations.map(o => `<div class="obs-card-mini" data-id="${o.id}"><span>📍</span> ${o.nestingIndex||'Nouveau'} · ${new Date(o.timestamp).toLocaleDateString()}</div>`).join('');
+        document.querySelectorAll('.obs-card-mini').forEach(c => {
+          c.addEventListener('click', () => {
+            closePanel();
+            const id = c.dataset.id;
+            const obs = observations.find(o => o.id === id);
+            if (obs) map.setView([obs.lat, obs.lng], 15);
+            setTimeout(() => openSheet(id), 400);
+          });
+        });
+      }
+
+      function openPanel() {
+        $panel.classList.add('open');
+        refreshPanel();
+      }
+      function closePanel() {
+        $panel.classList.remove('open');
+      }
+
+      function updateCount() {
+        $obsCount.textContent = observations.length + ' zone(s)';
+      }
+
+      // ---------- ÉVÉNEMENTS ----------
+      $fabDraw.addEventListener('click', () => setDrawingMode(!isDrawing));
+      $fabList.addEventListener('click', () => $panel.classList.contains('open') ? closePanel() : openPanel());
+      document.getElementById('btn-close-panel').addEventListener('click', closePanel);
+      $backdrop.addEventListener('click', closeSheet);
+      document.getElementById('btn-geoloc').addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          toast('📍 Géolocalisation non supportée');
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          pos => map.setView([pos.coords.latitude, pos.coords.longitude], 16),
+          () => toast('📍 Impossible de vous localiser')
+        );
+      });
+
+      // Démarrage immédiat de la carte
+      initMap();
+    });
+  </script>
 </body>
 </html>
