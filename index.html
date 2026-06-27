@@ -10,7 +10,10 @@
   <meta name="description" content="Application d'observation ornithologique pour le Loriot d'Europe – PWA 100% hors ligne">
   <title>🕊️ Observatoire du Loriot d'Europe</title>
 
-  <!-- Leaflet CSS via CDN (sera mis en cache par le Service Worker) -->
+  <!-- Manifest PWA -->
+  <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk9ic2VydmF0b2lyZSBkdSBMb3Jpb3QgZCdFdXJvcGUiLAogICJzaG9ydF9uYW1lIjogIkxvcmlvdCBFdXJvcGUiLAogICJkZXNjcmlwdGlvbiI6ICJBcHBsaWNhdGlvbiBk' />
+  
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
@@ -30,11 +33,7 @@
       --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: var(--police);
@@ -65,9 +64,7 @@
       letter-spacing: 0.5px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
-    #offline-badge.show {
-      display: block;
-    }
+    #offline-badge.show { display: block; }
 
     /* Lucioles en fond */
     .fireflies {
@@ -189,9 +186,7 @@
       border: 1px solid #f5d742;
     }
 
-    .drawing-indicator.active {
-      opacity: 1;
-    }
+    .drawing-indicator.active { opacity: 1; }
 
     .fab-container {
       position: absolute;
@@ -246,9 +241,7 @@
       border-left: 1px solid rgba(255, 255, 255, 0.2);
     }
 
-    #observations-panel.open {
-      transform: translateX(0);
-    }
+    #observations-panel.open { transform: translateX(0); }
 
     .panel-header {
       padding: 16px 20px;
@@ -305,9 +298,7 @@
       color: #e0e0c0;
     }
 
-    #observation-sheet.open {
-      transform: translateY(0);
-    }
+    #observation-sheet.open { transform: translateY(0); }
 
     .sheet-handle {
       width: 40px;
@@ -322,9 +313,7 @@
       overflow-y: auto;
     }
 
-    .form-group {
-      margin-bottom: 18px;
-    }
+    .form-group { margin-bottom: 18px; }
 
     .form-group label {
       font-weight: 700;
@@ -424,9 +413,7 @@
       display: none;
     }
 
-    .btn-delete-obs.visible {
-      display: block;
-    }
+    .btn-delete-obs.visible { display: block; }
 
     .toast {
       position: fixed;
@@ -443,9 +430,7 @@
       pointer-events: none;
     }
 
-    .toast.show {
-      opacity: 1;
-    }
+    .toast.show { opacity: 1; }
 
     #sheet-backdrop {
       position: absolute;
@@ -543,62 +528,74 @@
     <div id="sheet-backdrop"></div>
   </div>
 
-  <!-- Leaflet JS via CDN (sera mis en cache) -->
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-  <!-- Service Worker pour le mode hors ligne -->
+  <!-- Service Worker : mise en cache intelligente pour le hors-ligne -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {
-        // Fallback : enregistrement inline si /sw.js n'existe pas
-        const swCode = `
-          const CACHE_NAME = 'loriot-v3';
-          const urlsToCache = [
-            '/',
-            'index.html',
-            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-            'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-            'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
-          ];
+      const swCode = `
+        const CACHE_NAME = 'loriot-offline-v1';
+        const APP_SHELL = [
+          '/',
+          'index.html',
+          'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+          'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+        ];
 
-          self.addEventListener('install', event => {
-            event.waitUntil(
-              caches.open(CACHE_NAME)
-                .then(cache => cache.addAll(urlsToCache))
-                .then(() => self.skipWaiting())
-            );
-          });
+        self.addEventListener('install', event => {
+          event.waitUntil(
+            caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL).then(() => self.skipWaiting()))
+          );
+        });
 
-          self.addEventListener('activate', event => {
-            event.waitUntil(
-              caches.keys().then(keys => Promise.all(
-                keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-              )).then(() => self.clients.claim())
-            );
-          });
+        self.addEventListener('activate', event => {
+          event.waitUntil(
+            caches.keys().then(keys => Promise.all(
+              keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+            )).then(() => self.clients.claim())
+          );
+        });
 
-          self.addEventListener('fetch', event => {
-            if (event.request.method !== 'GET') return;
+        self.addEventListener('fetch', event => {
+          if (event.request.method !== 'GET') return;
+          const url = new URL(event.request.url);
+
+          // Mise en cache des tuiles OpenStreetMap (ou autre)
+          if (url.hostname === 'tile.openstreetmap.org') {
             event.respondWith(
               caches.match(event.request).then(cached => {
-                const networked = fetch(event.request).then(response => {
+                const fetchPromise = fetch(event.request).then(response => {
                   if (response && response.status === 200) {
                     const clone = response.clone();
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
                   }
                   return response;
-                }).catch(() => cached);
-                return cached || networked;
+                }).catch(() => cached); // Si réseau absent, on renvoie le cache
+                return cached || fetchPromise;
               })
             );
-          });
-        `;
-        const blob = new Blob([swCode], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(blob);
-        navigator.serviceWorker.register(swUrl);
-      });
+          } else {
+            // Pour les autres ressources, stratégie network first avec fallback cache
+            event.respondWith(
+              fetch(event.request).then(response => {
+                if (response && response.status === 200) {
+                  const clone = response.clone();
+                  caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                }
+                return response;
+              }).catch(() => caches.match(event.request))
+            );
+          }
+        });
+      `;
+
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl).then(() => {
+        console.log('✅ Service Worker enregistré – mode hors-ligne activé');
+      }).catch(err => console.warn('⚠️ Erreur Service Worker', err));
     }
   </script>
 
@@ -628,7 +625,6 @@
 
       // ---------- DOM ----------
       const $obsCount = document.getElementById('obs-count-badge');
-      const $mapEl = document.getElementById('map');
       const $drawInd = document.getElementById('drawing-indicator');
       const $fabDraw = document.getElementById('fab-draw');
       const $fabList = document.getElementById('fab-list');
