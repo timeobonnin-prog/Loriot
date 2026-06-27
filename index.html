@@ -10,7 +10,7 @@
   <meta name="description" content="Application d'observation ornithologique pour le Loriot d'Europe – PWA 100% hors ligne">
   <title>🕊️ Observatoire du Loriot d'Europe</title>
 
-  <!-- Manifest PWA -->
+  <!-- Manifest PWA (intégré) -->
   <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk9ic2VydmF0b2lyZSBkdSBMb3Jpb3QgZCdFdXJvcGUiLAogICJzaG9ydF9uYW1lIjogIkxvcmlvdCBFdXJvcGUiLAogICJkZXNjcmlwdGlvbiI6ICJBcHBsaWNhdGlvbiBk' />
   
   <!-- Leaflet CSS -->
@@ -66,7 +66,7 @@
     }
     #offline-badge.show { display: block; }
 
-    /* Lucioles en fond */
+    /* Lucioles */
     .fireflies {
       position: fixed;
       inset: 0;
@@ -98,7 +98,6 @@
       50% { opacity: 1; box-shadow: 0 0 28px 8px #ffe484; }
     }
 
-    /* Application */
     #app-container {
       display: flex;
       flex-direction: column;
@@ -120,6 +119,7 @@
       z-index: 100;
       gap: 10px;
       flex-shrink: 0;
+      flex-wrap: wrap;
     }
 
     .app-title {
@@ -140,19 +140,33 @@
       backdrop-filter: blur(10px);
     }
 
-    .btn-geoloc {
-      background: rgba(255, 255, 255, 0.2);
+    .top-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .top-btn {
+      background: rgba(255, 255, 255, 0.15);
       border: none;
       color: #f5e7b3;
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 0.8rem;
       cursor: pointer;
-      font-size: 1.2rem;
       transition: var(--transition);
       display: flex;
       align-items: center;
-      justify-content: center;
+      gap: 4px;
+      backdrop-filter: blur(5px);
+    }
+
+    .top-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .top-btn.active {
+      background: #f5d742;
+      color: #1a2e1a;
     }
 
     #map-container {
@@ -333,10 +347,7 @@
       font-size: 0.95rem;
     }
 
-    .weather-options {
-      display: flex;
-      gap: 10px;
-    }
+    .weather-options { display: flex; gap: 10px; }
 
     .weather-btn {
       flex: 1;
@@ -447,7 +458,6 @@
       pointer-events: auto;
     }
 
-    /* Adaptation PC / tablette */
     @media (min-width: 768px) {
       #observation-sheet {
         max-width: 500px;
@@ -464,15 +474,20 @@
   <!-- Badge hors-ligne -->
   <div id="offline-badge">📡 Vous êtes hors ligne</div>
 
-  <!-- Lucioles de fond -->
+  <!-- Lucioles -->
   <div class="fireflies" id="fireflies-container"></div>
 
-  <!-- APPLICATION PRINCIPALE (directement visible) -->
+  <!-- Application -->
   <div id="app-container">
     <div id="top-bar">
       <span class="app-title"><span>🕊️</span> Loriot d'Europe</span>
       <span class="obs-count" id="obs-count-badge">0 zone(s)</span>
-      <button class="btn-geoloc" id="btn-geoloc">📍</button>
+      <div class="top-buttons">
+        <button class="top-btn" id="btn-satellite" title="Vue satellite">🛰️ Satellite</button>
+        <button class="top-btn" id="btn-reload" title="Recharger les tuiles">🔄</button>
+        <button class="top-btn" id="btn-sync" title="Synchroniser les données">📡 Sync</button>
+        <button class="top-btn" id="btn-geoloc" title="Me localiser">📍</button>
+      </div>
     </div>
 
     <div id="map-container">
@@ -532,11 +547,11 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-  <!-- Service Worker : mise en cache intelligente pour le hors-ligne -->
+  <!-- Service Worker : mise en cache pour le hors‑ligne -->
   <script>
     if ('serviceWorker' in navigator) {
       const swCode = `
-        const CACHE_NAME = 'loriot-offline-v1';
+        const CACHE_NAME = 'loriot-offline-v2';
         const APP_SHELL = [
           '/',
           'index.html',
@@ -562,8 +577,8 @@
           if (event.request.method !== 'GET') return;
           const url = new URL(event.request.url);
 
-          // Mise en cache des tuiles OpenStreetMap (ou autre)
-          if (url.hostname === 'tile.openstreetmap.org') {
+          // Mise en cache des tuiles (standard + satellite)
+          if (url.hostname === 'tile.openstreetmap.org' || url.hostname === 'server.arcgisonline.com') {
             event.respondWith(
               caches.match(event.request).then(cached => {
                 const fetchPromise = fetch(event.request).then(response => {
@@ -572,12 +587,11 @@
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
                   }
                   return response;
-                }).catch(() => cached); // Si réseau absent, on renvoie le cache
+                }).catch(() => cached);
                 return cached || fetchPromise;
               })
             );
           } else {
-            // Pour les autres ressources, stratégie network first avec fallback cache
             event.respondWith(
               fetch(event.request).then(response => {
                 if (response && response.status === 200) {
@@ -594,12 +608,12 @@
       const blob = new Blob([swCode], { type: 'application/javascript' });
       const swUrl = URL.createObjectURL(blob);
       navigator.serviceWorker.register(swUrl).then(() => {
-        console.log('✅ Service Worker enregistré – mode hors-ligne activé');
-      }).catch(err => console.warn('⚠️ Erreur Service Worker', err));
+        console.log('✅ Service Worker actif – mode hors-ligne');
+      }).catch(err => console.warn('Service Worker non enregistré', err));
     }
   </script>
 
-  <!-- Application principale -->
+  <!-- Logique principale -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       // ---------- LUCIOLES ----------
@@ -614,7 +628,7 @@
         ffContainer.appendChild(ff);
       }
 
-      // ---------- ÉTAT GLOBAL ----------
+      // ---------- ÉTAT ----------
       const STORAGE_KEY = 'loriot_obs_v3';
       let observations = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
       let map, mapCircles = {};
@@ -622,8 +636,11 @@
       let currentEditId = null;
       let tempPhotos = [];
       let selectedWeather = null;
+      let currentLayer = 'standard'; // 'standard' ou 'satellite'
+      let standardLayer, satelliteLayer;
+      let syncQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]'); // IDs à synchroniser
 
-      // ---------- DOM ----------
+      // DOM
       const $obsCount = document.getElementById('obs-count-badge');
       const $drawInd = document.getElementById('drawing-indicator');
       const $fabDraw = document.getElementById('fab-draw');
@@ -641,11 +658,19 @@
       const $btnDelete = document.getElementById('btn-delete-obs');
       const $toast = document.getElementById('toast');
       const $offlineBadge = document.getElementById('offline-badge');
+      const $btnSatellite = document.getElementById('btn-satellite');
+      const $btnReload = document.getElementById('btn-reload');
+      const $btnSync = document.getElementById('btn-sync');
+      const $btnGeoloc = document.getElementById('btn-geoloc');
 
-      // Gestion réseau
+      // Réseau
       function updateOnlineStatus() {
         if (navigator.onLine) {
           $offlineBadge.classList.remove('show');
+          // Tenter de vider la syncQueue automatiquement
+          if (syncQueue.length > 0) {
+            syncNow();
+          }
         } else {
           $offlineBadge.classList.add('show');
         }
@@ -654,7 +679,6 @@
       window.addEventListener('offline', updateOnlineStatus);
       updateOnlineStatus();
 
-      // Toast
       function toast(msg) {
         $toast.textContent = msg;
         $toast.classList.add('show');
@@ -664,6 +688,7 @@
 
       function saveData() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
+        localStorage.setItem('syncQueue', JSON.stringify(syncQueue));
       }
 
       function getColor(idx) {
@@ -682,10 +707,22 @@
           zoom: 6,
           zoomControl: true
         });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+
+        // Couche standard OSM
+        standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; OpenStreetMap',
           maxZoom: 19
-        }).addTo(map);
+        });
+
+        // Couche satellite ESRI
+        satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+          maxZoom: 19
+        });
+
+        standardLayer.addTo(map);
+        currentLayer = 'standard';
+        updateSatelliteButton();
 
         map.on('click', (e) => {
           if (!isDrawing) return;
@@ -700,6 +737,7 @@
             timestamp: Date.now()
           };
           observations.push(obs);
+          syncQueue.push(obs.id); // marquer pour synchro future
           saveData();
           drawCircle(obs);
           setDrawingMode(false);
@@ -709,6 +747,47 @@
 
         rebuildCircles();
       }
+
+      function updateSatelliteButton() {
+        if (currentLayer === 'satellite') {
+          $btnSatellite.classList.add('active');
+          $btnSatellite.textContent = '🛰️ Satellite';
+        } else {
+          $btnSatellite.classList.remove('active');
+          $btnSatellite.textContent = '🗺️ Standard';
+        }
+      }
+
+      $btnSatellite.addEventListener('click', () => {
+        if (currentLayer === 'standard') {
+          map.removeLayer(standardLayer);
+          map.addLayer(satelliteLayer);
+          currentLayer = 'satellite';
+        } else {
+          map.removeLayer(satelliteLayer);
+          map.addLayer(standardLayer);
+          currentLayer = 'standard';
+        }
+        updateSatelliteButton();
+        toast(currentLayer === 'satellite' ? '🛰️ Vue satellite' : '🗺️ Vue standard');
+      });
+
+      $btnReload.addEventListener('click', () => {
+        // Force le rechargement des tuiles du viewport courant
+        if (!map) return;
+        const currentZoom = map.getZoom();
+        const currentCenter = map.getCenter();
+        // On enlève puis remet la couche active pour forcer le rechargement
+        if (currentLayer === 'standard') {
+          map.removeLayer(standardLayer);
+          map.addLayer(standardLayer);
+        } else {
+          map.removeLayer(satelliteLayer);
+          map.addLayer(satelliteLayer);
+        }
+        map.setView(currentCenter, currentZoom);
+        toast('🔄 Tuiles rechargées');
+      });
 
       function drawCircle(obs) {
         const col = getColor(obs.nestingIndex);
@@ -795,6 +874,7 @@
         obs.nestingIndex = $nestingSelect.value;
         obs.weather = selectedWeather;
         obs.photos = [...tempPhotos];
+        if (!syncQueue.includes(obs.id)) syncQueue.push(obs.id);
         saveData();
         if (mapCircles[obs.id]) {
           map.removeLayer(mapCircles[obs.id]);
@@ -809,6 +889,7 @@
       $btnDelete.addEventListener('click', () => {
         if (!currentEditId || !confirm('Supprimer définitivement ?')) return;
         observations = observations.filter(o => o.id !== currentEditId);
+        syncQueue = syncQueue.filter(id => id !== currentEditId);
         saveData();
         if (mapCircles[currentEditId]) map.removeLayer(mapCircles[currentEditId]);
         updateCount();
@@ -817,7 +898,6 @@
         toast('🗑️ Zone supprimée');
       });
 
-      // Météo
       $weatherOpts.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-weather]');
         if (!btn) return;
@@ -825,7 +905,6 @@
         updateWeatherUI();
       });
 
-      // Photo
       $btnAddPhoto.addEventListener('click', () => $photoInput.click());
       $photoInput.addEventListener('change', async () => {
         const file = $photoInput.files[0];
@@ -856,7 +935,7 @@
       // Panneau
       function refreshPanel() {
         $panelList.innerHTML = observations.length === 0 
-          ? '<p style="padding:20px;color:#aaa;">Aucune zone d\'observation</p>'
+          ? '<p style="padding:20px;color:#aaa;">Aucune zone</p>'
           : observations.map(o => `<div class="obs-card-mini" data-id="${o.id}"><span>📍</span> ${o.nestingIndex||'Nouveau'} · ${new Date(o.timestamp).toLocaleDateString()}</div>`).join('');
         document.querySelectorAll('.obs-card-mini').forEach(c => {
           c.addEventListener('click', () => {
@@ -881,12 +960,36 @@
         $obsCount.textContent = observations.length + ' zone(s)';
       }
 
-      // ---------- ÉVÉNEMENTS ----------
-      $fabDraw.addEventListener('click', () => setDrawingMode(!isDrawing));
-      $fabList.addEventListener('click', () => $panel.classList.contains('open') ? closePanel() : openPanel());
-      document.getElementById('btn-close-panel').addEventListener('click', closePanel);
-      $backdrop.addEventListener('click', closeSheet);
-      document.getElementById('btn-geoloc').addEventListener('click', () => {
+      // ---------- SYNCHRONISATION ----------
+      function syncNow() {
+        if (!navigator.onLine) {
+          toast('📡 Hors ligne – synchronisation différée');
+          return;
+        }
+        if (syncQueue.length === 0) {
+          toast('✅ Aucune donnée à synchroniser');
+          return;
+        }
+        // Simulation d'envoi vers un serveur (remplacez l'URL par votre endpoint)
+        const dataToSync = observations.filter(o => syncQueue.includes(o.id));
+        $btnSync.textContent = '⏳';
+        $btnSync.disabled = true;
+
+        // Simulation d'une requête fetch (à adapter)
+        setTimeout(() => {
+          console.log('📤 Synchronisation simulée de', dataToSync.length, 'observations');
+          syncQueue = [];
+          saveData();
+          $btnSync.textContent = '📡 Sync';
+          $btnSync.disabled = false;
+          toast('✅ Données synchronisées');
+        }, 1500);
+      }
+
+      $btnSync.addEventListener('click', syncNow);
+
+      // Géolocalisation
+      $btnGeoloc.addEventListener('click', () => {
         if (!navigator.geolocation) {
           toast('📍 Géolocalisation non supportée');
           return;
@@ -897,7 +1000,13 @@
         );
       });
 
-      // Démarrage immédiat de la carte
+      // FAB
+      $fabDraw.addEventListener('click', () => setDrawingMode(!isDrawing));
+      $fabList.addEventListener('click', () => $panel.classList.contains('open') ? closePanel() : openPanel());
+      document.getElementById('btn-close-panel').addEventListener('click', closePanel);
+      $backdrop.addEventListener('click', closeSheet);
+
+      // Démarrage
       initMap();
     });
   </script>
