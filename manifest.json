@@ -1,0 +1,15 @@
+{
+  "name": "Loriot Carto",
+  "short_name": "Loriot",
+  "start_url": "/loriot/",
+  "display": "standalone",
+  "background_color": "#0b1a0e",
+  "theme_color": "#1a2e1a",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/616/616430.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
