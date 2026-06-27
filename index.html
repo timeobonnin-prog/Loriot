@@ -199,6 +199,7 @@
       <span class="title">🕊️ Loriot d'Europe</span>
       <span id="obs-count">0 zone(s)</span>
       <div class="tools">
+        <button class="tool-btn" id="btn-download" title="Télécharger la zone pour hors-ligne">⬇️ Zone</button>
         <button class="tool-btn" id="btn-satellite">🛰️ Satellite</button>
         <button class="tool-btn" id="btn-reload">🔄</button>
         <button class="tool-btn" id="btn-sync">📡 Sync</button>
@@ -207,7 +208,7 @@
     </header>
     <div id="map-container">
       <div id="map"></div>
-      <div id="drawing-hint">🎯 Cliquez sur la carte pour placer un cercle (37,5 m)</div>
+      <div id="drawing-hint">🎯 Cliquez pour placer un cercle (37,5 m)</div>
       <div class="fab-container">
         <button class="fab" id="fab-draw">⭕</button>
         <button class="fab" id="fab-list">📋</button>
@@ -224,7 +225,7 @@
       <div class="sheet-handle"></div>
       <div class="sheet-content">
         <div class="form-group">
-          <label>🕒 Heure de l'observation</label>
+          <label>🕒 Heure</label>
           <input type="time" id="obs-time" step="60">
         </div>
         <div class="form-group">
@@ -262,15 +263,13 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Service Worker (hors‑ligne) -->
   <script>
+    // ========== SERVICE WORKER ==========
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         const swCode = `
-          const CACHE_NAME = 'loriot-final2';
+          const CACHE_NAME = 'loriot-offline-v1';
           const ASSETS = [
             '/',
             'index.html',
@@ -322,18 +321,16 @@
         const swUrl = URL.createObjectURL(blob);
         navigator.serviceWorker.register(swUrl)
           .then(() => console.log('✅ Service Worker enregistré'))
-          .catch(err => console.warn('⚠️ Échec du Service Worker', err));
+          .catch(err => console.warn('SW non enregistré', err));
       });
     }
-  </script>
 
-  <!-- Application principale -->
-  <script>
+    // ========== APPLICATION ==========
     (function() {
-      const STORAGE = 'loriot_data_v3';
-      const DEFAULT_RADIUS = 37.5; // Rayon divisé par 2 (75/2 = 37.5 m)
+      const STORAGE = 'loriot_data_v4';
+      const DEFAULT_RADIUS = 37.5;
       let observations = JSON.parse(localStorage.getItem(STORAGE) || '[]');
-      let syncQueue = JSON.parse(localStorage.getItem('loriot_sync_v3') || '[]');
+      let syncQueue = JSON.parse(localStorage.getItem('loriot_sync_v4') || '[]');
       let map, standardLayer, satelliteLayer, currentLayer = 'standard';
       let circles = {};
       let drawingMode = false;
@@ -359,6 +356,7 @@
       const $btnDelete = document.getElementById('btn-delete');
       const $obsCount = document.getElementById('obs-count');
       const $toast = document.getElementById('toast');
+      const $btnDownload = document.getElementById('btn-download');
       const $btnSatellite = document.getElementById('btn-satellite');
       const $btnReload = document.getElementById('btn-reload');
       const $btnSync = document.getElementById('btn-sync');
@@ -374,7 +372,7 @@
 
       function save() {
         localStorage.setItem(STORAGE, JSON.stringify(observations));
-        localStorage.setItem('loriot_sync_v3', JSON.stringify(syncQueue));
+        localStorage.setItem('loriot_sync_v4', JSON.stringify(syncQueue));
       }
 
       function getColor(index) {
@@ -388,9 +386,59 @@
 
       function getCurrentTime() {
         const now = new Date();
-        const hh = String(now.getHours()).padStart(2, '0');
-        const mm = String(now.getMinutes()).padStart(2, '0');
-        return `${hh}:${mm}`;
+        return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      }
+
+      // ----- FONCTION DE TÉLÉCHARGEMENT DE LA ZONE -----
+      async function downloadVisibleTiles() {
+        if (!map) return;
+        const bounds = map.getBounds();
+        const minZoom = map.getZoom();
+        const maxZoom = 18; // tuiles jusqu'au zoom 18
+        const tileUrls = [];
+        const layer = currentLayer === 'satellite' ? satelliteLayer : standardLayer;
+        const tileUrlTemplate = currentLayer === 'satellite'
+          ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+        for (let z = minZoom; z <= maxZoom; z++) {
+          const northWest = map.project(bounds.getNorthWest(), z);
+          const southEast = map.project(bounds.getSouthEast(), z);
+          const tileSize = 256;
+          const minX = Math.floor(northWest.x / tileSize);
+          const maxX = Math.floor(southEast.x / tileSize);
+          const minY = Math.floor(northWest.y / tileSize);
+          const maxY = Math.floor(southEast.y / tileSize);
+
+          for (let x = minX; x <= maxX; x++) {
+            for (let y = minY; y <= maxY; y++) {
+              const url = tileUrlTemplate
+                .replace('{z}', z)
+                .replace('{x}', x)
+                .replace('{y}', y);
+              tileUrls.push(url);
+            }
+          }
+        }
+
+        $btnDownload.textContent = '⏳';
+        $btnDownload.disabled = true;
+        toast(`📥 Téléchargement de ${tileUrls.length} tuiles...`);
+
+        const cache = await caches.open('loriot-offline-v1');
+        for (const url of tileUrls) {
+          try {
+            const response = await fetch(url);
+            if (response.ok) {
+              cache.put(url, response.clone());
+            }
+          } catch (e) {
+            console.warn('Échec tuile', url);
+          }
+        }
+        $btnDownload.textContent = '⬇️ Zone';
+        $btnDownload.disabled = false;
+        toast('✅ Zone enregistrée pour le hors-ligne');
       }
 
       function initMap() {
@@ -446,8 +494,8 @@
           weight: 2.5
         }).addTo(map);
         const timeStr = obs.time ? `🕒 ${obs.time}` : '';
-        const nbStr = obs.nbIndividus ? `🐦 ${obs.nbIndividus} ind.` : '';
-        circle.bindPopup(`<b>Zone</b><br>${obs.nestingIndex || 'Nouveau'}<br>${timeStr}<br>${nbStr}`);
+        const nbStr = obs.nbIndividus ? `🐦 ${obs.nbIndividus}` : '';
+        circle.bindPopup(`<b>Zone</b><br>${obs.nestingIndex || 'Nouveau'}<br>${timeStr} ${nbStr}`);
         circle.on('click', () => { if(!drawingMode) openSheet(obs.id); });
         circles[obs.id] = circle;
       }
@@ -660,6 +708,7 @@
           () => toast('📍 Impossible de vous localiser')
         );
       });
+      $btnDownload.addEventListener('click', downloadVisibleTiles);
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape') { stopDrawing(); closeSheet(); closePanel(); }
       });
