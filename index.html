@@ -6,310 +6,197 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#1a2e1a">
-  <title>🕊️ Loriot d'Europe – Observatoire 37</title>
+  <title>🕊️ Loriot d'Europe – Obs 37</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    :root {
-      --bg: #0d1f12;
-      --surface: rgba(20, 35, 20, 0.9);
-      --accent: #f5d742;
-      --text: #f0f0d0;
-      --text-dim: #9aba8a;
-    }
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      height: 100vh; width: 100vw;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: #0b1a0e;
+      color: #e0e0c0;
+      height: 100vh;
+      width: 100vw;
       overflow: hidden;
-      -webkit-tap-highlight-color: transparent;
       user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
-    #app { display: flex; flex-direction: column; height: 100%; }
+    #app { display:flex; flex-direction:column; height:100%; }
     header {
-      background: linear-gradient(135deg, #1e3b2c, #14221a);
-      padding: 10px 15px;
+      background: linear-gradient(135deg, #1a2e1a, #0f1f0f);
+      padding: 8px 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
       border-bottom: 1px solid rgba(255,255,255,0.1);
-      z-index: 100;
-      min-height: 54px;
+      flex-wrap: wrap;
+      z-index: 10;
     }
-    .title { font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 6px; }
-    .badge { background: rgba(255,255,255,0.12); padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; }
-    .tool-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .title { font-weight:700; font-size:1rem; white-space:nowrap; }
+    .badge {
+      background: rgba(255,255,255,0.15);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+    .tool-row { display:flex; gap:6px; flex-wrap:wrap; }
     .tool-btn {
-      background: var(--surface);
-      backdrop-filter: blur(15px);
+      background: rgba(255,255,255,0.1);
       border: 1px solid rgba(255,255,255,0.2);
-      color: var(--text);
-      padding: 8px 12px;
+      color: #e0e0c0;
+      padding: 7px 12px;
       border-radius: 10px;
       font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 5px;
-      transition: 0.2s;
+      gap: 4px;
+      backdrop-filter: blur(5px);
+      white-space: nowrap;
     }
-    .tool-btn:active { transform: scale(0.96); }
-    .tool-btn.active { background: var(--accent); color: #1a2e1a; border-color: var(--accent); }
-    #map-container { flex: 1; position: relative; }
-    #map { width: 100%; height: 100%; background: #2a4a34; }
+    .tool-btn:active { transform:scale(0.96); }
+    .tool-btn.active { background:#f5d742; color:#1a2e1a; border-color:#f5d742; }
+
+    #map-container { flex:1; position:relative; }
+    #map { width:100%; height:100%; background:#2a4a34; }
 
     /* Barre de progression */
-    #progress-container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 6px;
-      background: rgba(0,0,0,0.5);
-      z-index: 1000;
-      display: none;
+    #progress-wrap {
+      position:absolute; top:0; left:0; width:100%; height:5px;
+      background:rgba(0,0,0,0.4); z-index:999;
+      display:none;
     }
     #progress-bar {
-      height: 100%;
-      width: 0%;
-      background: var(--accent);
+      height:100%; width:0%;
+      background:#f5d742;
       transition: width 0.2s;
-      box-shadow: 0 0 10px var(--accent);
+      box-shadow:0 0 12px #f5d742;
     }
-    #progress-text {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.7);
-      color: var(--accent);
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      z-index: 1001;
-      display: none;
-      pointer-events: none;
+    #progress-label {
+      position:absolute; top:8px; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,0.75); color:#f5d742;
+      padding:3px 14px; border-radius:20px; font-size:0.7rem;
+      z-index:1000; display:none; pointer-events:none;
     }
 
     #drawing-hint {
-      position: absolute;
-      top: 15px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.75);
-      color: var(--accent);
-      padding: 8px 18px;
-      border-radius: 20px;
-      font-weight: 700;
-      font-size: 0.8rem;
-      z-index: 500;
-      pointer-events: none;
-      opacity: 0;
-      transition: 0.2s;
+      position:absolute; top:16px; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,0.7); color:#f5d742;
+      padding:6px 18px; border-radius:20px; font-weight:700; font-size:0.8rem;
+      z-index:500; pointer-events:none; opacity:0; transition:0.2s;
     }
-    #drawing-hint.show { opacity: 1; }
+    #drawing-hint.show { opacity:1; }
+
     .fab-container {
-      position: absolute;
-      bottom: 20px;
-      right: 16px;
-      z-index: 600;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      position:absolute; bottom:20px; right:16px; z-index:600;
+      display:flex; flex-direction:column; gap:12px;
     }
     .fab {
-      width: 50px; height: 50px;
-      border-radius: 50%;
-      background: var(--surface);
-      backdrop-filter: blur(15px);
-      border: 1px solid rgba(255,255,255,0.3);
-      color: var(--text);
-      font-size: 1.4rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
-      transition: 0.2s;
+      width:50px; height:50px; border-radius:50%;
+      background:rgba(20,35,20,0.85); backdrop-filter:blur(10px);
+      border:1px solid rgba(255,255,255,0.25);
+      color:#e0e0c0; font-size:1.4rem;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,0.5);
     }
-    .fab.active { background: #c0392b; border-color: #ff6b6b; }
+    .fab.active { background:#c0392b; border-color:#ff6b6b; }
+
+    /* Panneau */
     .panel {
-      position: absolute;
-      top: 0; right: 0;
-      width: 85%; max-width: 360px;
-      height: 100%;
-      background: var(--surface);
-      backdrop-filter: blur(25px);
-      z-index: 700;
-      transform: translateX(100%);
-      transition: 0.3s;
-      display: flex;
-      flex-direction: column;
-      border-left: 1px solid rgba(255,255,255,0.15);
+      position:absolute; top:0; right:0; width:85%; max-width:360px; height:100%;
+      background:rgba(15,25,15,0.95); backdrop-filter:blur(25px);
+      z-index:700; transform:translateX(100%); transition:0.3s;
+      display:flex; flex-direction:column; border-left:1px solid rgba(255,255,255,0.15);
     }
-    .panel.open { transform: translateX(0); }
+    .panel.open { transform:translateX(0); }
     .panel-header {
-      padding: 16px 18px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding:16px; display:flex; justify-content:space-between; align-items:center;
+      border-bottom:1px solid rgba(255,255,255,0.1);
     }
-    .panel-list { flex: 1; overflow-y: auto; padding: 12px; }
+    .panel-list { flex:1; overflow-y:auto; padding:12px; }
     .obs-item {
-      background: rgba(255,255,255,0.06);
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 8px;
-      cursor: pointer;
-      border: 1px solid rgba(255,255,255,0.1);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 0.85rem;
+      background:rgba(255,255,255,0.06); border-radius:12px; padding:14px;
+      margin-bottom:8px; cursor:pointer; border:1px solid rgba(255,255,255,0.1);
+      display:flex; align-items:center; gap:10px; font-size:0.85rem;
     }
+
+    /* Fiche */
     .sheet {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      background: var(--surface);
-      backdrop-filter: blur(25px);
-      border-radius: 24px 24px 0 0;
-      box-shadow: 0 -8px 30px rgba(0,0,0,0.7);
-      z-index: 650;
-      transform: translateY(100%);
-      transition: 0.3s;
-      max-height: 75vh;
-      display: flex;
-      flex-direction: column;
-      border-top: 1px solid rgba(255,255,255,0.15);
+      position:absolute; bottom:0; left:0; right:0;
+      background:rgba(18,30,18,0.95); backdrop-filter:blur(25px);
+      border-radius:24px 24px 0 0; box-shadow:0 -8px 30px rgba(0,0,0,0.7);
+      z-index:650; transform:translateY(100%); transition:0.3s;
+      max-height:75vh; display:flex; flex-direction:column;
+      border-top:1px solid rgba(255,255,255,0.15);
     }
-    .sheet.open { transform: translateY(0); }
+    .sheet.open { transform:translateY(0); }
     .sheet-handle {
-      width: 40px; height: 5px;
-      background: #4a6a4a;
-      border-radius: 10px;
-      margin: 12px auto 8px;
+      width:40px; height:5px; background:#4a6a4a; border-radius:10px;
+      margin:12px auto 8px;
     }
-    .sheet-content { padding: 0 18px 18px; overflow-y: auto; }
-    .field { margin-bottom: 12px; }
+    .sheet-content { padding:0 18px 18px; overflow-y:auto; }
+    .field { margin-bottom:12px; }
     .field label {
-      display: block;
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      margin-bottom: 4px;
-      color: var(--text-dim);
+      display:block; font-size:0.7rem; text-transform:uppercase;
+      letter-spacing:0.5px; margin-bottom:4px; color:#9aba8a;
     }
     select, input[type="text"], input[type="number"], input[type="time"] {
-      width: 100%;
-      padding: 10px;
-      border-radius: 10px;
-      background: rgba(0,0,0,0.3);
-      border: 1px solid rgba(255,255,255,0.25);
-      color: #fff;
-      font-size: 0.9rem;
+      width:100%; padding:10px; border-radius:10px;
+      background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.25);
+      color:#fff; font-size:0.9rem;
     }
-    .row { display: flex; gap: 10px; }
-    .row .field { flex: 1; min-width: 0; }
-    .weather-row { display: flex; gap: 8px; }
+    .row { display:flex; gap:10px; }
+    .row .field { flex:1; min-width:0; }
+    .weather-row { display:flex; gap:8px; }
     .weather-btn {
-      flex: 1;
-      padding: 8px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.25);
-      border-radius: 10px;
-      text-align: center;
-      font-size: 1.3rem;
-      cursor: pointer;
+      flex:1; padding:8px; background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.25); border-radius:10px;
+      text-align:center; font-size:1.3rem; cursor:pointer;
     }
     .weather-btn.selected {
-      background: rgba(245,215,66,0.2);
-      border-color: var(--accent);
-      box-shadow: 0 0 12px var(--accent);
+      background:rgba(245,215,66,0.2); border-color:#f5d742;
+      box-shadow:0 0 12px #f5d742;
     }
-    .photo-area { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; align-items: center; }
-    .photo-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); }
-    .photo-wrap { position: relative; }
+    .photo-area { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; align-items:center; }
+    .photo-thumb { width:48px; height:48px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.3); }
+    .photo-wrap { position:relative; }
     .photo-wrap .del {
-      position: absolute;
-      top: -7px; right: -7px;
-      background: #e74c3c;
-      color: white;
-      border: none;
-      width: 20px; height: 20px;
-      border-radius: 50%;
-      font-size: 0.7rem;
-      cursor: pointer;
+      position:absolute; top:-7px; right:-7px; background:#e74c3c;
+      color:white; border:none; width:20px; height:20px; border-radius:50%;
+      font-size:0.7rem; cursor:pointer;
     }
     .btn-primary {
-      background: var(--accent);
-      color: #1a2e1a;
-      border: none;
-      padding: 14px;
-      border-radius: 12px;
-      font-weight: 700;
-      width: 100%;
-      cursor: pointer;
-      margin-top: 6px;
-      font-size: 1rem;
+      background:#f5d742; color:#1a2e1a; border:none; padding:14px;
+      border-radius:12px; font-weight:700; width:100%; cursor:pointer;
+      margin-top:6px; font-size:1rem;
     }
     .btn-danger {
-      background: #c0392b;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 10px;
-      width: 100%;
-      margin-top: 6px;
-      cursor: pointer;
-      display: none;
-      font-weight: 600;
+      background:#c0392b; color:white; border:none; padding:12px;
+      border-radius:10px; width:100%; margin-top:6px; cursor:pointer;
+      display:none; font-weight:600;
     }
-    .btn-danger.show { display: block; }
+    .btn-danger.show { display:block; }
+
+    /* Menu contextuel */
     .context-menu {
-      position: absolute;
-      background: rgba(10, 20, 10, 0.95);
-      backdrop-filter: blur(20px);
-      border-radius: 12px;
-      padding: 6px 0;
-      z-index: 800;
-      min-width: 130px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.7);
-      display: none;
+      position:absolute; background:rgba(10,20,10,0.95); backdrop-filter:blur(20px);
+      border-radius:12px; padding:6px 0; z-index:800; min-width:130px;
+      box-shadow:0 8px 24px rgba(0,0,0,0.7); display:none;
     }
     .context-menu button {
-      display: block;
-      width: 100%;
-      background: none;
-      border: none;
-      color: #f0f0d0;
-      padding: 10px 18px;
-      text-align: left;
-      font-size: 0.9rem;
-      cursor: pointer;
+      display:block; width:100%; background:none; border:none;
+      color:#f0f0d0; padding:10px 18px; text-align:left; font-size:0.9rem; cursor:pointer;
     }
+
     .toast {
-      position: fixed;
-      bottom: 90px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.85);
-      color: var(--accent);
-      padding: 10px 22px;
-      border-radius: 25px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      z-index: 9999;
-      opacity: 0;
-      pointer-events: none;
-      transition: 0.3s;
+      position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,0.85); color:#f5d742; padding:10px 22px;
+      border-radius:25px; font-weight:600; font-size:0.85rem; z-index:9999;
+      opacity:0; pointer-events:none; transition:0.3s;
     }
-    .toast.show { opacity: 1; }
+    .toast.show { opacity:1; }
   </style>
 </head>
 <body>
@@ -328,9 +215,9 @@
 
     <div id="map-container">
       <div id="map"></div>
-      <div id="progress-container"><div id="progress-bar"></div></div>
-      <div id="progress-text"></div>
-      <div id="drawing-hint">🎯 Touchez la carte pour placer un cercle</div>
+      <div id="progress-wrap"><div id="progress-bar"></div></div>
+      <div id="progress-label"></div>
+      <div id="drawing-hint">🎯 Touchez pour placer un cercle</div>
       <div class="fab-container">
         <button class="fab" id="fab-draw">⭕</button>
         <button class="fab" id="fab-list">📋</button>
@@ -395,12 +282,15 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-    // ⚠️ REMPLACEZ ICI PAR VOTRE CONFIGURATION FIREBASE
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // ===================== CONFIGURATION =====================
+    // Pour synchroniser vos observations dans le cloud (Firebase) :
+    // 1. Créez un projet sur https://console.firebase.google.com
+    // 2. Activez "Realtime Database" (mode test)
+    // 3. Copiez votre configuration ici et remplacez les valeurs
+    // Si vous laissez la configuration par défaut, l'application utilisera
+    // uniquement le stockage local de l'appareil (pas de cloud).
     const firebaseConfig = {
       apiKey: "VOTRE_API_KEY",
       authDomain: "VOTRE_PROJECT.firebaseapp.com",
@@ -410,63 +300,61 @@
       messagingSenderId: "...",
       appId: "..."
     };
+    const useCloud = firebaseConfig.apiKey !== "VOTRE_API_KEY";
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const observationsRef = ref(db, 'observations');
+    // ===================== SERVICE WORKER =====================
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const swCode = `
+          const CACHE = 'loriot-offline-37';
+          const ASSETS = [
+            '/',
+            'index.html',
+            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+          ];
+          self.addEventListener('install', e => {
+            e.waitUntil(
+              caches.open(CACHE).then(cache => cache.addAll(ASSETS).then(() => self.skipWaiting()))
+            );
+          });
+          self.addEventListener('activate', e => {
+            e.waitUntil(
+              caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+              .then(() => self.clients.claim())
+            );
+          });
+          self.addEventListener('fetch', e => {
+            if (e.request.method !== 'GET') return;
+            e.respondWith(
+              caches.match(e.request).then(cached => {
+                return fetch(e.request).then(response => {
+                  if (response && response.status === 200) {
+                    const clone = response.clone();
+                    caches.open(CACHE).then(cache => cache.put(e.request, clone));
+                  }
+                  return response;
+                }).catch(() => cached);
+              })
+            );
+          });
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(blob));
+      });
+    }
 
-    // Service Worker hors‑ligne
+    // ===================== APPLICATION =====================
     (function() {
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          const swCode = `
-            const CACHE = 'loriot-offline-37';
-            const ASSETS = [
-              '/',
-              'index.html',
-              'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-              'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-            ];
-            self.addEventListener('install', e => {
-              e.waitUntil(
-                caches.open(CACHE).then(cache => cache.addAll(ASSETS).then(() => self.skipWaiting()))
-              );
-            });
-            self.addEventListener('activate', e => {
-              e.waitUntil(
-                caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-                .then(() => self.clients.claim())
-              );
-            });
-            self.addEventListener('fetch', e => {
-              if (e.request.method !== 'GET') return;
-              e.respondWith(
-                caches.match(e.request).then(cached => {
-                  return fetch(e.request).then(response => {
-                    if (response && response.status === 200) {
-                      const clone = response.clone();
-                      caches.open(CACHE).then(cache => cache.put(e.request, clone));
-                    }
-                    return response;
-                  }).catch(() => cached);
-                })
-              );
-            });
-          `;
-          const blob = new Blob([swCode], { type: 'application/javascript' });
-          navigator.serviceWorker.register(URL.createObjectURL(blob));
-        });
-      }
-    })();
-
-    // Application
-    (function() {
-      const RADIUS = 35;
-      const CENTER = [47.39, 0.68];
+      // Constantes
+      const RADIUS = 35; // mètres
+      const CENTER = [47.39, 0.68]; // Tours
       const ZOOM = 10;
       const DL_BOUNDS = { south: 46.8, north: 47.6, west: 0.0, east: 1.3 };
+      const STORAGE_KEY = 'loriot_obs_local';
 
-      let localObservations = [];
+      // État
+      let observations = [];
       let map, standardLayer, satelliteLayer, currentLayer = 'standard';
       let circles = {};
       let drawingMode = false;
@@ -475,6 +363,10 @@
       let selectedWeather = null;
       let contextCircleId = null;
 
+      // Références Firebase (si cloud activé)
+      let db, observationsRef;
+
+      // DOM
       const $ = id => document.getElementById(id);
       const mapEl = $('map');
       const drawingHint = $('drawing-hint');
@@ -497,10 +389,60 @@
       const obsCountBadge = $('obs-count');
       const toastEl = $('toast');
       const contextMenu = $('context-menu');
-      const progressContainer = $('progress-container');
+      const progressWrap = $('progress-wrap');
       const progressBar = $('progress-bar');
-      const progressText = $('progress-text');
+      const progressLabel = $('progress-label');
 
+      // ============= GESTION DES DONNÉES (local / cloud) =============
+      async function initData() {
+        if (useCloud) {
+          const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+          const { getDatabase, ref, set, onValue, remove } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+          const app = initializeApp(firebaseConfig);
+          db = getDatabase(app);
+          observationsRef = ref(db, 'observations');
+          onValue(observationsRef, (snapshot) => {
+            const data = snapshot.val();
+            observations = data ? Object.values(data) : [];
+            rebuildAllCircles();
+          });
+        } else {
+          // Stockage local pur
+          observations = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+          rebuildAllCircles();
+        }
+      }
+
+      function saveObservation(obs) {
+        if (useCloud) {
+          const { set, ref } = window.firebase || {};
+          if (db) {
+            import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(m => {
+              m.set(m.ref(db, 'observations/' + obs.id), obs).catch(() => toast('⚠️ Erreur réseau'));
+            });
+          }
+        } else {
+          const existing = observations.findIndex(o => o.id === obs.id);
+          if (existing >= 0) observations[existing] = obs;
+          else observations.push(obs);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
+          rebuildAllCircles();
+        }
+      }
+
+      function deleteObservation(id) {
+        if (useCloud) {
+          import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(m => {
+            m.remove(m.ref(db, 'observations/' + id)).catch(() => toast('⚠️ Erreur réseau'));
+          });
+        } else {
+          observations = observations.filter(o => o.id !== id);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
+          rebuildAllCircles();
+        }
+      }
+
+      // ============= INTERFACE =============
       function toast(msg) {
         toastEl.textContent = msg;
         toastEl.classList.add('show');
@@ -526,32 +468,16 @@
         if (total === 0) return;
         const pct = Math.round((done / total) * 100);
         progressBar.style.width = pct + '%';
-        progressText.textContent = `${done}/${total} tuiles`;
-        progressContainer.style.display = 'block';
-        progressText.style.display = 'block';
+        progressLabel.textContent = `${done}/${total} tuiles`;
+        progressWrap.style.display = 'block';
+        progressLabel.style.display = 'block';
         if (done >= total) {
-          progressText.textContent = '✅ Carte prête';
+          progressLabel.textContent = '✅ Carte prête';
           setTimeout(() => {
-            progressContainer.style.display = 'none';
-            progressText.style.display = 'none';
+            progressWrap.style.display = 'none';
+            progressLabel.style.display = 'none';
           }, 2000);
         }
-      }
-
-      function startListening() {
-        onValue(observationsRef, (snapshot) => {
-          const data = snapshot.val();
-          localObservations = data ? Object.values(data) : [];
-          rebuildAllCircles();
-        });
-      }
-
-      function saveToCloud(obs) {
-        set(ref(db, 'observations/' + obs.id), obs).catch(err => toast('⚠️ Erreur réseau'));
-      }
-
-      function deleteFromCloud(id) {
-        remove(ref(db, 'observations/' + id)).catch(err => toast('⚠️ Erreur réseau'));
       }
 
       async function downloadRegionTiles() {
@@ -579,9 +505,7 @@
             if (res.ok) cache.put(url, res.clone());
           } catch(e) {}
           done++;
-          if (done % 50 === 0 || done === total) {
-            updateProgress(done, total);
-          }
+          if (done % 50 === 0 || done === total) updateProgress(done, total);
         }
         updateProgress(total, total);
       }
@@ -615,12 +539,16 @@
             photos: [],
             timestamp: Date.now()
           };
-          localObservations.push(obs);
-          saveToCloud(obs);
+          if (useCloud) {
+            // Ajout local + cloud
+            saveObservation(obs);
+          } else {
+            observations.push(obs);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
+          }
           drawCircle(obs);
         });
 
-        startListening();
         setTimeout(downloadRegionTiles, 1500);
       }
 
@@ -669,7 +597,7 @@
       function rebuildAllCircles() {
         Object.values(circles).forEach(c => map.removeLayer(c));
         circles = {};
-        localObservations.forEach(drawCircle);
+        observations.forEach(drawCircle);
         updateCount();
         refreshPanel();
       }
@@ -691,7 +619,7 @@
 
       function openSheet(id) {
         currentEditId = id;
-        const obs = localObservations.find(o => o.id === id);
+        const obs = observations.find(o => o.id === id);
         if (!obs) return;
         obsTime.value = obs.time || '';
         nbIndividus.value = obs.nbIndividus || 0;
@@ -731,9 +659,9 @@
       }
 
       function refreshPanel() {
-        panelList.innerHTML = localObservations.length === 0 ?
-          '<p style="color:var(--text-dim); text-align:center; padding:30px;">Aucune zone</p>' :
-          localObservations.map(o => `
+        panelList.innerHTML = observations.length === 0 ?
+          '<p style="color:#9aba8a; text-align:center; padding:30px;">Aucune zone</p>' :
+          observations.map(o => `
             <div class="obs-item" data-id="${o.id}">
               <span>📍</span>
               <span style="flex:1">${o.nestingIndex?getNestingLabel(o.nestingIndex):'Nv'} · ${o.time||''} · ${o.sexe||''}</span>
@@ -742,7 +670,7 @@
           item.addEventListener('click', () => {
             const id = item.dataset.id;
             closePanel();
-            const obs = localObservations.find(o => o.id === id);
+            const obs = observations.find(o => o.id === id);
             if (obs) map.setView([obs.lat, obs.lng], 16);
             setTimeout(() => openSheet(id), 300);
           });
@@ -753,15 +681,15 @@
 
       function openPanel() { panel.classList.add('open'); refreshPanel(); }
       function closePanel() { panel.classList.remove('open'); }
-      function updateCount() { obsCountBadge.textContent = localObservations.length + ' zone(s)'; }
+      function updateCount() { obsCountBadge.textContent = observations.length + ' zone(s)'; }
 
+      // Événements
       contextMenu.addEventListener('click', e => {
         const action = e.target.dataset.action;
         if (!action || !contextCircleId) return;
         if (action === 'edit') openSheet(contextCircleId);
         else if (action === 'delete' && confirm('Supprimer ce cercle ?')) {
-          localObservations = localObservations.filter(o => o.id !== contextCircleId);
-          deleteFromCloud(contextCircleId);
+          deleteObservation(contextCircleId);
           if (circles[contextCircleId]) map.removeLayer(circles[contextCircleId]);
           rebuildAllCircles();
           toast('🗑️ Cercle supprimé');
@@ -772,7 +700,7 @@
       mapEl.addEventListener('click', () => contextMenu.style.display = 'none');
 
       $('btn-export').addEventListener('click', () => {
-        const blob = new Blob([JSON.stringify(localObservations, null, 2)], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(observations, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = 'loriot_obs_37.json'; a.click();
         toast('📤 Exporté');
@@ -786,8 +714,8 @@
             try {
               const imported = JSON.parse(reader.result);
               if (Array.isArray(imported)) {
-                imported.forEach(obs => saveToCloud(obs));
-                toast('📥 Importé dans le cloud');
+                imported.forEach(obs => saveObservation(obs));
+                toast('📥 Importé');
               }
             } catch(e) { toast('⚠️ Fichier invalide'); }
           };
@@ -819,7 +747,7 @@
       $('btn-close-panel').addEventListener('click', closePanel);
       btnSave.addEventListener('click', () => {
         if (!currentEditId) return;
-        const obs = localObservations.find(o => o.id === currentEditId);
+        const obs = observations.find(o => o.id === currentEditId);
         obs.time = obsTime.value;
         obs.nbIndividus = parseInt(nbIndividus.value) || 0;
         obs.sexe = sexeSelect.value;
@@ -827,17 +755,16 @@
         obs.plumage = plumageInput.value;
         obs.weather = selectedWeather;
         obs.photos = [...tempPhotos];
-        saveToCloud(obs);
+        saveObservation(obs);
         if (circles[obs.id]) { map.removeLayer(circles[obs.id]); drawCircle(obs); }
         updateCount();
         refreshPanel();
         closeSheet();
-        toast('💾 Enregistré dans le cloud');
+        toast('💾 Enregistré');
       });
       btnDelete.addEventListener('click', () => {
         if (!currentEditId || !confirm('Supprimer définitivement ?')) return;
-        localObservations = localObservations.filter(o => o.id !== currentEditId);
-        deleteFromCloud(currentEditId);
+        deleteObservation(currentEditId);
         if (circles[currentEditId]) map.removeLayer(circles[currentEditId]);
         rebuildAllCircles();
         closeSheet();
@@ -874,6 +801,8 @@
         if (e.key === 'Escape') { stopDrawing(); closeSheet(); closePanel(); }
       });
 
+      // Démarrage
+      initData();
       initMap();
     })();
   </script>
