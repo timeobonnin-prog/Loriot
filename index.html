@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#1e3b2c">
-  <title>🕊️ Observatoire du Loriot – Centre‑Val de Loire</title>
+  <title>🕊️ Observatoire du Loriot – Sync Cloud</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
+    /* ========== STYLES (identiques aux précédentes versions) ========== */
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Segoe UI',system-ui,sans-serif; background:#0d1f16; color:#f4f1e1; height:100vh; overflow:hidden; }
     #app { display:flex; flex-direction:column; height:100%; }
@@ -199,10 +200,9 @@
       <span class="title">🕊️ Loriot d'Europe</span>
       <span id="obs-count">0 zone(s)</span>
       <div class="tools">
-        <button class="tool-btn" id="btn-download" title="Progression du téléchargement">📥 Prêt</button>
         <button class="tool-btn" id="btn-satellite">🛰️ Satellite</button>
         <button class="tool-btn" id="btn-reload">🔄</button>
-        <button class="tool-btn" id="btn-sync">📡 Sync</button>
+        <button class="tool-btn" id="btn-sync" title="Synchroniser avec le cloud">☁️ Sync</button>
         <button class="tool-btn" id="btn-geoloc">📍</button>
       </div>
     </header>
@@ -263,473 +263,388 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    // ========== SERVICE WORKER (hors‑ligne) ==========
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        const swCode = `
-          const CACHE_NAME = 'loriot-autocache-v1';
-          const ASSETS = [
-            '/',
-            'index.html',
-            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-          ];
-          self.addEventListener('install', e => {
-            e.waitUntil(
-              caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS).then(() => self.skipWaiting()))
-            );
-          });
-          self.addEventListener('activate', e => {
-            e.waitUntil(
-              caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
-              .then(() => self.clients.claim())
-            );
-          });
-          self.addEventListener('fetch', e => {
-            if (e.request.method !== 'GET') return;
-            const url = new URL(e.request.url);
-            if (url.hostname === 'tile.openstreetmap.org' || url.hostname === 'server.arcgisonline.com') {
-              e.respondWith(
-                caches.match(e.request).then(cached => {
-                  return fetch(e.request).then(response => {
-                    if (response && response.status === 200) {
-                      const clone = response.clone();
-                      caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-                    }
-                    return response;
-                  }).catch(() => cached);
-                })
-              );
-            } else {
-              e.respondWith(
-                caches.match(e.request).then(cached => {
-                  return fetch(e.request).then(response => {
-                    if (response && response.status === 200) {
-                      const clone = response.clone();
-                      caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-                    }
-                    return response;
-                  }).catch(() => cached);
-                })
-              );
-            }
-          });
-        `;
-        const blob = new Blob([swCode], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(blob);
-        navigator.serviceWorker.register(swUrl)
-          .then(() => console.log('✅ Service Worker enregistré'))
-          .catch(err => console.warn('SW non enregistré', err));
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    // ========== CONFIGURATION FIREBASE (À REMPLACER) ==========
+    const firebaseConfig = {
+      apiKey: "VOTRE_API_KEY",
+      authDomain: "VOTRE_PROJECT.firebaseapp.com",
+      databaseURL: "https://VOTRE_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "VOTRE_PROJECT",
+      storageBucket: "VOTRE_PROJECT.appspot.com",
+      messagingSenderId: "...",
+      appId: "..."
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const observationsRef = ref(db, 'observations');
+
+    // ========== APPLICATION ==========
+    const STORAGE_KEY = 'loriot_cloud_sync';
+    const DEFAULT_RADIUS = 37.5;
+    const CENTER = [47.0, 1.5];
+    const DEFAULT_ZOOM = 8;
+    let localObservations = []; // cache local pour affichage rapide
+    let map, standardLayer, satelliteLayer, currentLayer = 'standard';
+    let circles = {};
+    let drawingMode = false;
+    let currentEditId = null;
+    let tempPhotos = [];
+    let selectedWeather = null;
+
+    // Initialisation Firebase : chargement des observations depuis le cloud
+    function initCloudSync() {
+      onValue(observationsRef, (snapshot) => {
+        const data = snapshot.val();
+        const cloudObs = data ? Object.values(data) : [];
+        // Fusionner avec le cache local (les données cloud sont prioritaires)
+        localObservations = cloudObs;
+        // Sauvegarder dans localStorage pour le hors-ligne
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(localObservations));
+        rebuildAllCircles();
+        updateCount();
+        refreshPanel();
+        toast('☁️ Données chargées depuis le cloud');
+      }, { onlyOnce: false });
+    }
+
+    function saveObsToCloud(obs) {
+      set(ref(db, 'observations/' + obs.id), obs)
+        .then(() => console.log('✅ Observation synchronisée'))
+        .catch(err => console.warn('Erreur sync', err));
+    }
+
+    function deleteObsFromCloud(id) {
+      remove(ref(db, 'observations/' + id))
+        .then(() => console.log('🗑️ Observation supprimée du cloud'))
+        .catch(err => console.warn('Erreur suppression', err));
+    }
+
+    // Raccourcis DOM
+    const $map = document.getElementById('map');
+    const $hint = document.getElementById('drawing-hint');
+    const $fabDraw = document.getElementById('fab-draw');
+    const $fabList = document.getElementById('fab-list');
+    const $panel = document.getElementById('panel');
+    const $panelList = document.getElementById('panel-list');
+    const $sheet = document.getElementById('sheet');
+    const $obsTime = document.getElementById('obs-time');
+    const $nbIndividus = document.getElementById('nb-individus');
+    const $nestingSelect = document.getElementById('nesting-select');
+    const $weatherRow = document.getElementById('weather-row');
+    const $photoArea = document.getElementById('photo-area');
+    const $photoInput = document.getElementById('photo-input');
+    const $btnAddPhoto = document.getElementById('btn-add-photo');
+    const $btnSave = document.getElementById('btn-save');
+    const $btnDelete = document.getElementById('btn-delete');
+    const $obsCount = document.getElementById('obs-count');
+    const $toast = document.getElementById('toast');
+    const $btnSatellite = document.getElementById('btn-satellite');
+    const $btnReload = document.getElementById('btn-reload');
+    const $btnSync = document.getElementById('btn-sync');
+    const $btnGeoloc = document.getElementById('btn-geoloc');
+    const $btnClosePanel = document.getElementById('btn-close-panel');
+
+    function toast(msg) {
+      $toast.textContent = msg;
+      $toast.classList.add('show');
+      clearTimeout($toast._t);
+      $toast._t = setTimeout(() => $toast.classList.remove('show'), 2500);
+    }
+
+    function getColor(index) {
+      switch(index) {
+        case 'faible': return { fill: '#7CB342', stroke: '#558B2F' };
+        case 'moyen': return { fill: '#E67E22', stroke: '#BF5F0A' };
+        case 'fort': return { fill: '#C0392B', stroke: '#922B21' };
+        default: return { fill: '#f5d742', stroke: '#d4a820' };
+      }
+    }
+
+    function getCurrentTime() {
+      const now = new Date();
+      return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    }
+
+    function initMap() {
+      map = L.map('map', { center: CENTER, zoom: DEFAULT_ZOOM });
+      standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+      });
+      satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: '&copy; Esri, Maxar, Earthstar Geographics'
+      });
+      standardLayer.addTo(map);
+      updateSatelliteBtn();
+
+      map.on('click', e => {
+        if (!drawingMode) return;
+        const obs = {
+          id: 'obs_'+Date.now(),
+          lat: e.latlng.lat,
+          lng: e.latlng.lng,
+          radius: DEFAULT_RADIUS,
+          time: getCurrentTime(),
+          nbIndividus: 0,
+          nestingIndex: '',
+          weather: null,
+          photos: [],
+          timestamp: Date.now()
+        };
+        // Sauvegarde locale immédiate + cloud
+        localObservations.push(obs);
+        saveObsToCloud(obs);
+        drawCircle(obs);
+        stopDrawing();
+        openSheet(obs.id);
+        toast('✅ Zone créée et synchronisée');
+      });
+
+      // Démarrer l'écoute Firebase
+      initCloudSync();
+    }
+
+    function updateSatelliteBtn() {
+      $btnSatellite.textContent = currentLayer === 'satellite' ? '🛰️ Satellite' : '🗺️ Standard';
+      $btnSatellite.classList.toggle('active', currentLayer === 'satellite');
+    }
+
+    function drawCircle(obs) {
+      const col = getColor(obs.nestingIndex);
+      const circle = L.circle([obs.lat, obs.lng], {
+        radius: obs.radius,
+        color: col.stroke,
+        fillColor: col.fill,
+        fillOpacity: 0.35,
+        weight: 2.5
+      }).addTo(map);
+      const timeStr = obs.time ? `🕒 ${obs.time}` : '';
+      const nbStr = obs.nbIndividus ? `🐦 ${obs.nbIndividus}` : '';
+      circle.bindPopup(`<b>Zone</b><br>${obs.nestingIndex || 'Nouveau'}<br>${timeStr} ${nbStr}`);
+      circle.on('click', () => { if(!drawingMode) openSheet(obs.id); });
+      circles[obs.id] = circle;
+    }
+
+    function rebuildAllCircles() {
+      Object.values(circles).forEach(c => map.removeLayer(c));
+      circles = {};
+      localObservations.forEach(drawCircle);
+      updateCount();
+      refreshPanel();
+    }
+
+    function startDrawing() {
+      drawingMode = true;
+      $fabDraw.classList.add('active');
+      $hint.classList.add('show');
+      closeSheet();
+      closePanel();
+    }
+
+    function stopDrawing() {
+      drawingMode = false;
+      $fabDraw.classList.remove('active');
+      $hint.classList.remove('show');
+    }
+
+    function openSheet(id) {
+      currentEditId = id;
+      const obs = localObservations.find(o => o.id === id);
+      if (!obs) return;
+      $obsTime.value = obs.time || '';
+      $nbIndividus.value = obs.nbIndividus || 0;
+      $nestingSelect.value = obs.nestingIndex;
+      selectedWeather = obs.weather;
+      tempPhotos = [...(obs.photos || [])];
+      updateWeatherButtons();
+      renderPhotos();
+      $btnDelete.classList.add('show');
+      $sheet.classList.add('open');
+      map.setView([obs.lat, obs.lng], 15);
+    }
+
+    function closeSheet() {
+      $sheet.classList.remove('open');
+      currentEditId = null;
+      $btnDelete.classList.remove('show');
+    }
+
+    function updateWeatherButtons() {
+      document.querySelectorAll('#weather-row .weather-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.weather === selectedWeather);
       });
     }
 
-    // ========== APPLICATION ==========
-    (function() {
-      const STORAGE = 'loriot_data_autocache';
-      const DEFAULT_RADIUS = 37.5;
-      const CENTER = [47.0, 1.5]; // Centre-Val de Loire
-      const DEFAULT_ZOOM = 8;
-      const MAX_ZOOM = 18; // zoom max pour le préchargement
-
-      let observations = JSON.parse(localStorage.getItem(STORAGE) || '[]');
-      let syncQueue = JSON.parse(localStorage.getItem('loriot_sync_autocache') || '[]');
-      let map, standardLayer, satelliteLayer, currentLayer = 'standard';
-      let circles = {};
-      let drawingMode = false;
-      let currentEditId = null;
-      let tempPhotos = [];
-      let selectedWeather = null;
-      let downloadProgress = { total: 0, loaded: 0 };
-
-      const $map = document.getElementById('map');
-      const $hint = document.getElementById('drawing-hint');
-      const $fabDraw = document.getElementById('fab-draw');
-      const $fabList = document.getElementById('fab-list');
-      const $panel = document.getElementById('panel');
-      const $panelList = document.getElementById('panel-list');
-      const $sheet = document.getElementById('sheet');
-      const $obsTime = document.getElementById('obs-time');
-      const $nbIndividus = document.getElementById('nb-individus');
-      const $nestingSelect = document.getElementById('nesting-select');
-      const $weatherRow = document.getElementById('weather-row');
-      const $photoArea = document.getElementById('photo-area');
-      const $photoInput = document.getElementById('photo-input');
-      const $btnAddPhoto = document.getElementById('btn-add-photo');
-      const $btnSave = document.getElementById('btn-save');
-      const $btnDelete = document.getElementById('btn-delete');
-      const $obsCount = document.getElementById('obs-count');
-      const $toast = document.getElementById('toast');
-      const $btnDownload = document.getElementById('btn-download');
-      const $btnSatellite = document.getElementById('btn-satellite');
-      const $btnReload = document.getElementById('btn-reload');
-      const $btnSync = document.getElementById('btn-sync');
-      const $btnGeoloc = document.getElementById('btn-geoloc');
-      const $btnClosePanel = document.getElementById('btn-close-panel');
-
-      function toast(msg) {
-        $toast.textContent = msg;
-        $toast.classList.add('show');
-        clearTimeout($toast._t);
-        $toast._t = setTimeout(() => $toast.classList.remove('show'), 2500);
-      }
-
-      function save() {
-        localStorage.setItem(STORAGE, JSON.stringify(observations));
-        localStorage.setItem('loriot_sync_autocache', JSON.stringify(syncQueue));
-      }
-
-      function getColor(index) {
-        switch(index) {
-          case 'faible': return { fill: '#7CB342', stroke: '#558B2F' };
-          case 'moyen': return { fill: '#E67E22', stroke: '#BF5F0A' };
-          case 'fort': return { fill: '#C0392B', stroke: '#922B21' };
-          default: return { fill: '#f5d742', stroke: '#d4a820' };
-        }
-      }
-
-      function getCurrentTime() {
-        const now = new Date();
-        return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-      }
-
-      // ----- TÉLÉCHARGEMENT AUTOMATIQUE DES TUILES -----
-      async function autoDownloadTiles() {
-        if (!navigator.onLine) {
-          $btnDownload.textContent = '📴 Hors ligne';
-          return;
-        }
-        const bounds = L.latLngBounds(
-          [43.5, -1.5], // Sud-Ouest de la région Centre-Val de Loire (élargi)
-          [50.5, 4.5]   // Nord-Est
-        );
-        const tileUrls = [];
-        const baseUrl = currentLayer === 'satellite'
-          ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-          : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-        // Génère les URL pour les niveaux de zoom de DEFAULT_ZOOM à MAX_ZOOM
-        for (let z = DEFAULT_ZOOM; z <= MAX_ZOOM; z++) {
-          const nw = map.project(bounds.getNorthWest(), z);
-          const se = map.project(bounds.getSouthEast(), z);
-          const tileSize = 256;
-          const minX = Math.floor(nw.x / tileSize);
-          const maxX = Math.floor(se.x / tileSize);
-          const minY = Math.floor(nw.y / tileSize);
-          const maxY = Math.floor(se.y / tileSize);
-
-          for (let x = minX; x <= maxX; x++) {
-            for (let y = minY; y <= maxY; y++) {
-              tileUrls.push(baseUrl.replace('{z}', z).replace('{x}', x).replace('{y}', y));
-            }
-          }
-        }
-
-        downloadProgress.total = tileUrls.length;
-        downloadProgress.loaded = 0;
-        $btnDownload.textContent = `📥 0/${downloadProgress.total}`;
-        toast('⚡ Téléchargement automatique des tuiles...');
-
-        const cache = await caches.open('loriot-autocache-v1');
-        for (const url of tileUrls) {
-          try {
-            const response = await fetch(url);
-            if (response.ok) {
-              cache.put(url, response.clone());
-            }
-            downloadProgress.loaded++;
-            // Mise à jour toutes les 10 tuiles pour ne pas ralentir
-            if (downloadProgress.loaded % 10 === 0 || downloadProgress.loaded === downloadProgress.total) {
-              $btnDownload.textContent = `📥 ${downloadProgress.loaded}/${downloadProgress.total}`;
-            }
-          } catch (e) {}
-        }
-        $btnDownload.textContent = '✅ Prêt';
-        toast('✅ Carte enregistrée pour le hors-ligne');
-      }
-
-      function initMap() {
-        map = L.map('map', { center: CENTER, zoom: DEFAULT_ZOOM });
-        standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '&copy; OpenStreetMap'
+    function renderPhotos() {
+      document.querySelectorAll('.photo-wrap').forEach(el => el.remove());
+      tempPhotos.forEach((b64, idx) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'photo-wrap';
+        const img = document.createElement('img');
+        img.className = 'photo-thumb';
+        img.src = b64;
+        const del = document.createElement('button');
+        del.className = 'del';
+        del.textContent = '✕';
+        del.addEventListener('click', e => {
+          e.stopPropagation();
+          tempPhotos.splice(idx, 1);
+          renderPhotos();
         });
-        satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-          maxZoom: 19,
-          attribution: '&copy; Esri, Maxar, Earthstar Geographics'
+        wrap.appendChild(img);
+        wrap.appendChild(del);
+        $photoArea.insertBefore(wrap, $btnAddPhoto);
+      });
+    }
+
+    function refreshPanel() {
+      $panelList.innerHTML = localObservations.length === 0
+        ? '<p style="color:#aaa;text-align:center;padding:20px;">Aucune zone</p>'
+        : localObservations.map(o => {
+            const timeStr = o.time ? `🕒${o.time}` : '';
+            const nbText = o.nbIndividus ? `🐦${o.nbIndividus}` : '';
+            return `<div class="obs-item" data-id="${o.id}">
+              <span>📍</span>
+              <span>${o.nestingIndex ? getNestingLabel(o.nestingIndex) : 'Nouveau'} · ${timeStr} ${nbText} · ${new Date(o.timestamp).toLocaleDateString()}</span>
+            </div>`;
+          }).join('');
+      document.querySelectorAll('.obs-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const id = item.dataset.id;
+          closePanel();
+          const obs = localObservations.find(o => o.id === id);
+          if (obs) map.setView([obs.lat, obs.lng], 15);
+          setTimeout(() => openSheet(id), 350);
         });
-        standardLayer.addTo(map);
-        updateSatelliteBtn();
-
-        map.on('click', e => {
-          if (!drawingMode) return;
-          const obs = {
-            id: 'obs_'+Date.now(),
-            lat: e.latlng.lat,
-            lng: e.latlng.lng,
-            radius: DEFAULT_RADIUS,
-            time: getCurrentTime(),
-            nbIndividus: 0,
-            nestingIndex: '',
-            weather: null,
-            photos: [],
-            timestamp: Date.now()
-          };
-          observations.push(obs);
-          syncQueue.push(obs.id);
-          save();
-          drawCircle(obs);
-          stopDrawing();
-          openSheet(obs.id);
-          toast('✅ Zone créée');
-        });
-
-        rebuildAllCircles();
-
-        // Lancement du téléchargement automatique après initialisation
-        setTimeout(autoDownloadTiles, 1000);
-      }
-
-      function updateSatelliteBtn() {
-        $btnSatellite.textContent = currentLayer === 'satellite' ? '🛰️ Satellite' : '🗺️ Standard';
-        $btnSatellite.classList.toggle('active', currentLayer === 'satellite');
-      }
-
-      function drawCircle(obs) {
-        const col = getColor(obs.nestingIndex);
-        const circle = L.circle([obs.lat, obs.lng], {
-          radius: obs.radius,
-          color: col.stroke,
-          fillColor: col.fill,
-          fillOpacity: 0.35,
-          weight: 2.5
-        }).addTo(map);
-        const timeStr = obs.time ? `🕒 ${obs.time}` : '';
-        const nbStr = obs.nbIndividus ? `🐦 ${obs.nbIndividus}` : '';
-        circle.bindPopup(`<b>Zone</b><br>${obs.nestingIndex || 'Nouveau'}<br>${timeStr} ${nbStr}`);
-        circle.on('click', () => { if(!drawingMode) openSheet(obs.id); });
-        circles[obs.id] = circle;
-      }
-
-      function rebuildAllCircles() {
-        Object.values(circles).forEach(c => map.removeLayer(c));
-        circles = {};
-        observations.forEach(drawCircle);
-        updateCount();
-        refreshPanel();
-      }
-
-      function startDrawing() {
-        drawingMode = true;
-        $fabDraw.classList.add('active');
-        $hint.classList.add('show');
-        closeSheet();
-        closePanel();
-      }
-
-      function stopDrawing() {
-        drawingMode = false;
-        $fabDraw.classList.remove('active');
-        $hint.classList.remove('show');
-      }
-
-      function openSheet(id) {
-        currentEditId = id;
-        const obs = observations.find(o => o.id === id);
-        if (!obs) return;
-        $obsTime.value = obs.time || '';
-        $nbIndividus.value = obs.nbIndividus || 0;
-        $nestingSelect.value = obs.nestingIndex;
-        selectedWeather = obs.weather;
-        tempPhotos = [...obs.photos];
-        updateWeatherButtons();
-        renderPhotos();
-        $btnDelete.classList.add('show');
-        $sheet.classList.add('open');
-        map.setView([obs.lat, obs.lng], 15);
-      }
-
-      function closeSheet() {
-        $sheet.classList.remove('open');
-        currentEditId = null;
-        $btnDelete.classList.remove('show');
-      }
-
-      function updateWeatherButtons() {
-        document.querySelectorAll('#weather-row .weather-btn').forEach(b => {
-          b.classList.toggle('selected', b.dataset.weather === selectedWeather);
-        });
-      }
-
-      function renderPhotos() {
-        document.querySelectorAll('.photo-wrap').forEach(el => el.remove());
-        tempPhotos.forEach((b64, idx) => {
-          const wrap = document.createElement('div');
-          wrap.className = 'photo-wrap';
-          const img = document.createElement('img');
-          img.className = 'photo-thumb';
-          img.src = b64;
-          const del = document.createElement('button');
-          del.className = 'del';
-          del.textContent = '✕';
-          del.addEventListener('click', e => {
-            e.stopPropagation();
-            tempPhotos.splice(idx, 1);
-            renderPhotos();
-          });
-          wrap.appendChild(img);
-          wrap.appendChild(del);
-          $photoArea.insertBefore(wrap, $btnAddPhoto);
-        });
-      }
-
-      function refreshPanel() {
-        $panelList.innerHTML = observations.length === 0
-          ? '<p style="color:#aaa;text-align:center;padding:20px;">Aucune zone</p>'
-          : observations.map(o => {
-              const timeStr = o.time ? `🕒${o.time}` : '';
-              const nbText = o.nbIndividus ? `🐦${o.nbIndividus}` : '';
-              return `<div class="obs-item" data-id="${o.id}">
-                <span>📍</span>
-                <span>${o.nestingIndex ? getNestingLabel(o.nestingIndex) : 'Nouveau'} · ${timeStr} ${nbText} · ${new Date(o.timestamp).toLocaleDateString()}</span>
-              </div>`;
-            }).join('');
-        document.querySelectorAll('.obs-item').forEach(item => {
-          item.addEventListener('click', () => {
-            const id = item.dataset.id;
-            closePanel();
-            const obs = observations.find(o => o.id === id);
-            if (obs) map.setView([obs.lat, obs.lng], 15);
-            setTimeout(() => openSheet(id), 350);
-          });
-        });
-      }
-
-      function getNestingLabel(val) {
-        switch(val) {
-          case 'faible': return 'Chant seul';
-          case 'moyen': return 'Cris alarme';
-          case 'fort': return 'Transport/Couple';
-          default: return '';
-        }
-      }
-
-      function openPanel() { $panel.classList.add('open'); refreshPanel(); }
-      function closePanel() { $panel.classList.remove('open'); }
-      function updateCount() { $obsCount.textContent = observations.length + ' zone(s)'; }
-
-      function syncNow() {
-        if (!navigator.onLine) { toast('📡 Hors ligne, synchronisation différée'); return; }
-        if (syncQueue.length === 0) { toast('✅ Aucune donnée à synchroniser'); return; }
-        console.log('📤 Envoi de', syncQueue.length, 'observations (simulation)');
-        setTimeout(() => {
-          syncQueue = [];
-          save();
-          toast('✅ Synchronisation terminée');
-        }, 1000);
-      }
-
-      $fabDraw.addEventListener('click', () => drawingMode ? stopDrawing() : startDrawing());
-      $fabList.addEventListener('click', () => $panel.classList.contains('open') ? closePanel() : openPanel());
-      $btnClosePanel.addEventListener('click', closePanel);
-      $btnSave.addEventListener('click', () => {
-        if (!currentEditId) return;
-        const obs = observations.find(o => o.id === currentEditId);
-        obs.time = $obsTime.value;
-        obs.nbIndividus = parseInt($nbIndividus.value) || 0;
-        obs.nestingIndex = $nestingSelect.value;
-        obs.weather = selectedWeather;
-        obs.photos = [...tempPhotos];
-        if (!syncQueue.includes(obs.id)) syncQueue.push(obs.id);
-        save();
-        if (circles[obs.id]) { map.removeLayer(circles[obs.id]); drawCircle(obs); }
-        updateCount();
-        refreshPanel();
-        closeSheet();
-        toast('💾 Enregistré');
       });
-      $btnDelete.addEventListener('click', () => {
-        if (!currentEditId || !confirm('Supprimer cette zone ?')) return;
-        observations = observations.filter(o => o.id !== currentEditId);
-        syncQueue = syncQueue.filter(id => id !== currentEditId);
-        save();
-        if (circles[currentEditId]) map.removeLayer(circles[currentEditId]);
-        updateCount();
-        refreshPanel();
-        closeSheet();
-        toast('🗑️ Supprimé');
-      });
-      $weatherRow.addEventListener('click', e => {
-        const btn = e.target.closest('[data-weather]');
-        if (!btn) return;
-        selectedWeather = (selectedWeather === btn.dataset.weather) ? null : btn.dataset.weather;
-        updateWeatherButtons();
-      });
-      $btnAddPhoto.addEventListener('click', () => $photoInput.click());
-      $photoInput.addEventListener('change', () => {
-        const file = $photoInput.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const maxDim = 600;
-            let w = img.width, h = img.height;
-            if (w > maxDim || h > maxDim) {
-              const ratio = Math.min(maxDim/w, maxDim/h);
-              w = Math.round(w * ratio);
-              h = Math.round(h * ratio);
-            }
-            canvas.width = w; canvas.height = h;
-            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            tempPhotos.push(canvas.toDataURL('image/jpeg', 0.6));
-            renderPhotos();
-            toast('📸 Photo ajoutée');
-          };
-          img.src = reader.result;
-        };
-        reader.readAsDataURL(file);
-        $photoInput.value = '';
-      });
-      $btnSatellite.addEventListener('click', () => {
-        if (currentLayer === 'standard') {
-          map.removeLayer(standardLayer);
-          map.addLayer(satelliteLayer);
-          currentLayer = 'satellite';
-        } else {
-          map.removeLayer(satelliteLayer);
-          map.addLayer(standardLayer);
-          currentLayer = 'standard';
-        }
-        updateSatelliteBtn();
-        toast(currentLayer === 'satellite' ? '🛰️ Vue satellite' : '🗺️ Vue standard');
-      });
-      $btnReload.addEventListener('click', () => {
-        const center = map.getCenter();
-        const zoom = map.getZoom();
-        map.setView(center, zoom);
-        toast('🔄 Tuiles rechargées');
-      });
-      $btnSync.addEventListener('click', syncNow);
-      $btnGeoloc.addEventListener('click', () => {
-        if (!navigator.geolocation) { toast('📍 Géolocalisation non supportée'); return; }
-        navigator.geolocation.getCurrentPosition(
-          pos => map.setView([pos.coords.latitude, pos.coords.longitude], 16),
-          () => toast('📍 Impossible de vous localiser')
-        );
-      });
-      // Le bouton de téléchargement manuel peut relancer le processus
-      $btnDownload.addEventListener('click', autoDownloadTiles);
-      document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { stopDrawing(); closeSheet(); closePanel(); }
-      });
+    }
 
-      initMap();
+    function getNestingLabel(val) {
+      switch(val) {
+        case 'faible': return 'Chant seul';
+        case 'moyen': return 'Cris alarme';
+        case 'fort': return 'Transport/Couple';
+        default: return '';
+      }
+    }
+
+    function openPanel() { $panel.classList.add('open'); refreshPanel(); }
+    function closePanel() { $panel.classList.remove('open'); }
+    function updateCount() { $obsCount.textContent = localObservations.length + ' zone(s)'; }
+
+    // Événements
+    $fabDraw.addEventListener('click', () => drawingMode ? stopDrawing() : startDrawing());
+    $fabList.addEventListener('click', () => $panel.classList.contains('open') ? closePanel() : openPanel());
+    $btnClosePanel.addEventListener('click', closePanel);
+    $btnSave.addEventListener('click', () => {
+      if (!currentEditId) return;
+      const obs = localObservations.find(o => o.id === currentEditId);
+      if (!obs) return;
+      obs.time = $obsTime.value;
+      obs.nbIndividus = parseInt($nbIndividus.value) || 0;
+      obs.nestingIndex = $nestingSelect.value;
+      obs.weather = selectedWeather;
+      obs.photos = [...tempPhotos];
+      saveObsToCloud(obs);
+      if (circles[obs.id]) { map.removeLayer(circles[obs.id]); drawCircle(obs); }
       updateCount();
       refreshPanel();
-    })();
+      closeSheet();
+      toast('💾 Observation mise à jour dans le cloud');
+    });
+    $btnDelete.addEventListener('click', () => {
+      if (!currentEditId || !confirm('Supprimer cette zone ?')) return;
+      localObservations = localObservations.filter(o => o.id !== currentEditId);
+      deleteObsFromCloud(currentEditId);
+      if (circles[currentEditId]) map.removeLayer(circles[currentEditId]);
+      updateCount();
+      refreshPanel();
+      closeSheet();
+      toast('🗑️ Zone supprimée');
+    });
+    $weatherRow.addEventListener('click', e => {
+      const btn = e.target.closest('[data-weather]');
+      if (!btn) return;
+      selectedWeather = (selectedWeather === btn.dataset.weather) ? null : btn.dataset.weather;
+      updateWeatherButtons();
+    });
+    $btnAddPhoto.addEventListener('click', () => $photoInput.click());
+    $photoInput.addEventListener('change', () => {
+      const file = $photoInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 600;
+          let w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            const ratio = Math.min(maxDim/w, maxDim/h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+          }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          tempPhotos.push(canvas.toDataURL('image/jpeg', 0.6));
+          renderPhotos();
+          toast('📸 Photo ajoutée');
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+      $photoInput.value = '';
+    });
+    $btnSatellite.addEventListener('click', () => {
+      if (currentLayer === 'standard') {
+        map.removeLayer(standardLayer);
+        map.addLayer(satelliteLayer);
+        currentLayer = 'satellite';
+      } else {
+        map.removeLayer(satelliteLayer);
+        map.addLayer(standardLayer);
+        currentLayer = 'standard';
+      }
+      updateSatelliteBtn();
+      toast(currentLayer === 'satellite' ? '🛰️ Vue satellite' : '🗺️ Vue standard');
+    });
+    $btnReload.addEventListener('click', () => {
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      map.setView(center, zoom);
+      toast('🔄 Tuiles rechargées');
+    });
+    $btnSync.addEventListener('click', () => {
+      // Force la re-synchronisation complète
+      onValue(observationsRef, (snapshot) => {
+        const data = snapshot.val();
+        localObservations = data ? Object.values(data) : [];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(localObservations));
+        rebuildAllCircles();
+        updateCount();
+        refreshPanel();
+        toast('☁️ Synchronisation forcée réussie');
+      }, { onlyOnce: true });
+    });
+    $btnGeoloc.addEventListener('click', () => {
+      if (!navigator.geolocation) { toast('📍 Géolocalisation non supportée'); return; }
+      navigator.geolocation.getCurrentPosition(
+        pos => map.setView([pos.coords.latitude, pos.coords.longitude], 16),
+        () => toast('📍 Impossible de vous localiser')
+      );
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { stopDrawing(); closeSheet(); closePanel(); }
+    });
+
+    // Démarrage
+    initMap();
   </script>
 </body>
 </html>
