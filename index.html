@@ -13,7 +13,6 @@
       --bg: #0d1f12;
       --surface: rgba(20, 35, 20, 0.9);
       --accent: #f5d742;
-      --accent-dark: #c9a820;
       --text: #f0f0d0;
       --text-dim: #9aba8a;
     }
@@ -27,11 +26,7 @@
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
-    #app {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
+    #app { display: flex; flex-direction: column; height: 100%; }
     header {
       background: linear-gradient(135deg, #1e3b2c, #14221a);
       padding: 10px 15px;
@@ -44,27 +39,9 @@
       z-index: 100;
       min-height: 54px;
     }
-    .title {
-      font-weight: 700;
-      font-size: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-    }
-    .badge {
-      background: rgba(255,255,255,0.12);
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-    .tool-row {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
+    .title { font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+    .badge { background: rgba(255,255,255,0.12); padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; }
+    .tool-row { display: flex; gap: 6px; flex-wrap: wrap; }
     .tool-btn {
       background: var(--surface);
       backdrop-filter: blur(15px);
@@ -78,25 +55,12 @@
       display: flex;
       align-items: center;
       gap: 5px;
-      white-space: nowrap;
       transition: 0.2s;
     }
     .tool-btn:active { transform: scale(0.96); }
-    .tool-btn.active {
-      background: var(--accent);
-      color: #1a2e1a;
-      border-color: var(--accent);
-    }
-
-    #map-container {
-      flex: 1;
-      position: relative;
-    }
-    #map {
-      width: 100%; height: 100%;
-      background: #2a4a34;
-    }
-
+    .tool-btn.active { background: var(--accent); color: #1a2e1a; border-color: var(--accent); }
+    #map-container { flex: 1; position: relative; }
+    #map { width: 100%; height: 100%; background: #2a4a34; }
     #drawing-hint {
       position: absolute;
       top: 15px;
@@ -112,10 +76,8 @@
       pointer-events: none;
       opacity: 0;
       transition: 0.2s;
-      backdrop-filter: blur(5px);
     }
     #drawing-hint.show { opacity: 1; }
-
     .fab-container {
       position: absolute;
       bottom: 20px;
@@ -140,12 +102,7 @@
       box-shadow: 0 6px 18px rgba(0,0,0,0.5);
       transition: 0.2s;
     }
-    .fab.active {
-      background: #c0392b;
-      border-color: #ff6b6b;
-      box-shadow: 0 0 18px #ff6b6b;
-    }
-
+    .fab.active { background: #c0392b; border-color: #ff6b6b; }
     .panel {
       position: absolute;
       top: 0; right: 0;
@@ -167,13 +124,8 @@
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid rgba(255,255,255,0.1);
-      font-weight: 700;
     }
-    .panel-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px;
-    }
+    .panel-list { flex: 1; overflow-y: auto; padding: 12px; }
     .obs-item {
       background: rgba(255,255,255,0.06);
       border-radius: 12px;
@@ -186,7 +138,6 @@
       gap: 10px;
       font-size: 0.85rem;
     }
-
     .sheet {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -209,13 +160,8 @@
       border-radius: 10px;
       margin: 12px auto 8px;
     }
-    .sheet-content {
-      padding: 0 18px 18px;
-      overflow-y: auto;
-    }
-    .field {
-      margin-bottom: 12px;
-    }
+    .sheet-content { padding: 0 18px 18px; overflow-y: auto; }
+    .field { margin-bottom: 12px; }
     .field label {
       display: block;
       font-size: 0.7rem;
@@ -233,15 +179,9 @@
       color: #fff;
       font-size: 0.9rem;
     }
-    .row {
-      display: flex;
-      gap: 10px;
-    }
+    .row { display: flex; gap: 10px; }
     .row .field { flex: 1; min-width: 0; }
-    .weather-row {
-      display: flex;
-      gap: 8px;
-    }
+    .weather-row { display: flex; gap: 8px; }
     .weather-btn {
       flex: 1;
       padding: 8px;
@@ -257,19 +197,8 @@
       border-color: var(--accent);
       box-shadow: 0 0 12px var(--accent);
     }
-    .photo-area {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 6px;
-      align-items: center;
-    }
-    .photo-thumb {
-      width: 48px; height: 48px;
-      object-fit: cover;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.3);
-    }
+    .photo-area { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; align-items: center; }
+    .photo-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); }
     .photo-wrap { position: relative; }
     .photo-wrap .del {
       position: absolute;
@@ -307,7 +236,6 @@
       font-weight: 600;
     }
     .btn-danger.show { display: block; }
-
     .context-menu {
       position: absolute;
       background: rgba(10, 20, 10, 0.95);
@@ -329,10 +257,7 @@
       text-align: left;
       font-size: 0.9rem;
       cursor: pointer;
-      white-space: nowrap;
     }
-    .context-menu button:hover { background: rgba(255,255,255,0.1); }
-
     .toast {
       position: fixed;
       bottom: 90px;
@@ -348,7 +273,6 @@
       opacity: 0;
       pointer-events: none;
       transition: 0.3s;
-      backdrop-filter: blur(5px);
     }
     .toast.show { opacity: 1; }
   </style>
@@ -434,8 +358,26 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    // ⚠️ REMPLACEZ ICI PAR VOTRE CONFIGURATION FIREBASE
+    const firebaseConfig = {
+      apiKey: "VOTRE_API_KEY",
+      authDomain: "VOTRE_PROJECT.firebaseapp.com",
+      databaseURL: "https://VOTRE_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "VOTRE_PROJECT",
+      storageBucket: "VOTRE_PROJECT.appspot.com",
+      messagingSenderId: "...",
+      appId: "..."
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const observationsRef = ref(db, 'observations');
+
     // Service Worker hors‑ligne
     (function() {
       if ('serviceWorker' in navigator) {
@@ -482,14 +424,13 @@
 
     // Application
     (function() {
-      const STORAGE_KEY = 'loriot_obs_37';
       const RADIUS = 35; // mètres
       const CENTER = [47.39, 0.68]; // Tours, Indre-et-Loire
       const ZOOM = 10;
-      // Zone de téléchargement : Indre-et-Loire + marges
       const DL_BOUNDS = { south: 46.8, north: 47.6, west: 0.0, east: 1.3 };
 
-      let observations = [];
+      // Observations locales (cache) et synchronisation cloud
+      let localObservations = [];
       let map, standardLayer, satelliteLayer, currentLayer = 'standard';
       let circles = {};
       let drawingMode = false;
@@ -498,6 +439,7 @@
       let selectedWeather = null;
       let contextCircleId = null;
 
+      // DOM
       const $ = id => document.getElementById(id);
       const mapEl = $('map');
       const drawingHint = $('drawing-hint');
@@ -528,14 +470,6 @@
         toastEl._t = setTimeout(() => toastEl.classList.remove('show'), 2000);
       }
 
-      function loadData() {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        observations = raw ? JSON.parse(raw) : [];
-      }
-      function saveData() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
-      }
-
       function getColor(index) {
         switch(index) {
           case 'faible': return { fill:'#7CB342', stroke:'#558B2F' };
@@ -550,12 +484,27 @@
         return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
       }
 
-      // Téléchargement auto des tuiles (Indre-et-Loire)
+      // Synchronisation Firebase : écouter les changements
+      function startListening() {
+        onValue(observationsRef, (snapshot) => {
+          const data = snapshot.val();
+          localObservations = data ? Object.values(data) : [];
+          rebuildAllCircles();
+        });
+      }
+
+      // Sauvegarde dans Firebase
+      function saveToCloud(obs) {
+        set(ref(db, 'observations/' + obs.id), obs).catch(err => toast('⚠️ Erreur réseau'));
+      }
+
+      function deleteFromCloud(id) {
+        remove(ref(db, 'observations/' + id)).catch(err => toast('⚠️ Erreur réseau'));
+      }
+
+      // Téléchargement auto des tuiles
       async function downloadRegionTiles() {
-        const bounds = L.latLngBounds(
-          [DL_BOUNDS.south, DL_BOUNDS.west],
-          [DL_BOUNDS.north, DL_BOUNDS.east]
-        );
+        const bounds = L.latLngBounds([DL_BOUNDS.south, DL_BOUNDS.west], [DL_BOUNDS.north, DL_BOUNDS.east]);
         const baseUrl = currentLayer === 'satellite' ?
           'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' :
           'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -590,12 +539,8 @@
           attributionControl: false
         });
         L.control.zoom({ position: 'bottomleft' }).addTo(map);
-        standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19
-        });
-        satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-          maxZoom: 19
-        });
+        standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+        satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
         standardLayer.addTo(map);
         updateSatelliteBtn();
 
@@ -615,12 +560,13 @@
             photos: [],
             timestamp: Date.now()
           };
-          observations.push(obs);
-          saveData();
+          // Sauvegarde locale + cloud
+          localObservations.push(obs);
+          saveToCloud(obs);
           drawCircle(obs);
         });
 
-        rebuildAllCircles();
+        startListening();
         setTimeout(downloadRegionTiles, 2000);
       }
 
@@ -652,9 +598,7 @@
             showContextMenu(fakeEvent, obs.id);
           }, 600);
         });
-        circle.on('mouseup touchend touchcancel', () => {
-          clearTimeout(longPressTimer);
-        });
+        circle.on('mouseup touchend touchcancel', () => clearTimeout(longPressTimer));
         circles[obs.id] = circle;
       }
 
@@ -671,7 +615,7 @@
       function rebuildAllCircles() {
         Object.values(circles).forEach(c => map.removeLayer(c));
         circles = {};
-        observations.forEach(drawCircle);
+        localObservations.forEach(drawCircle);
         updateCount();
         refreshPanel();
       }
@@ -693,7 +637,7 @@
 
       function openSheet(id) {
         currentEditId = id;
-        const obs = observations.find(o => o.id === id);
+        const obs = localObservations.find(o => o.id === id);
         if (!obs) return;
         obsTime.value = obs.time || '';
         nbIndividus.value = obs.nbIndividus || 0;
@@ -733,9 +677,9 @@
       }
 
       function refreshPanel() {
-        panelList.innerHTML = observations.length === 0 ?
+        panelList.innerHTML = localObservations.length === 0 ?
           '<p style="color:var(--text-dim); text-align:center; padding:30px;">Aucune zone</p>' :
-          observations.map(o => `
+          localObservations.map(o => `
             <div class="obs-item" data-id="${o.id}">
               <span>📍</span>
               <span style="flex:1">${o.nestingIndex?getNestingLabel(o.nestingIndex):'Nv'} · ${o.time||''} · ${o.sexe||''}</span>
@@ -744,28 +688,27 @@
           item.addEventListener('click', () => {
             const id = item.dataset.id;
             closePanel();
-            const obs = observations.find(o => o.id === id);
+            const obs = localObservations.find(o => o.id === id);
             if (obs) map.setView([obs.lat, obs.lng], 16);
             setTimeout(() => openSheet(id), 300);
           });
         });
       }
 
-      function getNestingLabel(v) {
-        return {faible:'Chant', moyen:'Alarme', fort:'Transport'}[v] || '';
-      }
+      function getNestingLabel(v) { return {faible:'Chant', moyen:'Alarme', fort:'Transport'}[v] || ''; }
 
       function openPanel() { panel.classList.add('open'); refreshPanel(); }
       function closePanel() { panel.classList.remove('open'); }
-      function updateCount() { obsCountBadge.textContent = observations.length + ' zone(s)'; }
+      function updateCount() { obsCountBadge.textContent = localObservations.length + ' zone(s)'; }
 
+      // Menu contextuel
       contextMenu.addEventListener('click', e => {
         const action = e.target.dataset.action;
         if (!action || !contextCircleId) return;
         if (action === 'edit') openSheet(contextCircleId);
         else if (action === 'delete' && confirm('Supprimer ce cercle ?')) {
-          observations = observations.filter(o => o.id !== contextCircleId);
-          saveData();
+          localObservations = localObservations.filter(o => o.id !== contextCircleId);
+          deleteFromCloud(contextCircleId);
           if (circles[contextCircleId]) map.removeLayer(circles[contextCircleId]);
           rebuildAllCircles();
           toast('🗑️ Cercle supprimé');
@@ -775,8 +718,9 @@
       });
       mapEl.addEventListener('click', () => contextMenu.style.display = 'none');
 
+      // Boutons supplémentaires
       $('btn-export').addEventListener('click', () => {
-        const blob = new Blob([JSON.stringify(observations, null, 2)], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(localObservations, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = 'loriot_obs_37.json'; a.click();
         toast('📤 Exporté');
@@ -790,10 +734,8 @@
             try {
               const imported = JSON.parse(reader.result);
               if (Array.isArray(imported)) {
-                observations = [...observations, ...imported];
-                saveData();
-                rebuildAllCircles();
-                toast('📥 Importé');
+                imported.forEach(obs => saveToCloud(obs));
+                toast('📥 Importé dans le cloud');
               }
             } catch(e) { toast('⚠️ Fichier invalide'); }
           };
@@ -825,7 +767,7 @@
       $('btn-close-panel').addEventListener('click', closePanel);
       btnSave.addEventListener('click', () => {
         if (!currentEditId) return;
-        const obs = observations.find(o => o.id === currentEditId);
+        const obs = localObservations.find(o => o.id === currentEditId);
         obs.time = obsTime.value;
         obs.nbIndividus = parseInt(nbIndividus.value) || 0;
         obs.sexe = sexeSelect.value;
@@ -833,17 +775,17 @@
         obs.plumage = plumageInput.value;
         obs.weather = selectedWeather;
         obs.photos = [...tempPhotos];
-        saveData();
+        saveToCloud(obs);
         if (circles[obs.id]) { map.removeLayer(circles[obs.id]); drawCircle(obs); }
         updateCount();
         refreshPanel();
         closeSheet();
-        toast('💾 Enregistré');
+        toast('💾 Enregistré dans le cloud');
       });
       btnDelete.addEventListener('click', () => {
         if (!currentEditId || !confirm('Supprimer définitivement ?')) return;
-        observations = observations.filter(o => o.id !== currentEditId);
-        saveData();
+        localObservations = localObservations.filter(o => o.id !== currentEditId);
+        deleteFromCloud(currentEditId);
         if (circles[currentEditId]) map.removeLayer(circles[currentEditId]);
         rebuildAllCircles();
         closeSheet();
@@ -880,10 +822,7 @@
         if (e.key === 'Escape') { stopDrawing(); closeSheet(); closePanel(); }
       });
 
-      loadData();
       initMap();
-      updateCount();
-      refreshPanel();
     })();
   </script>
 </body>
