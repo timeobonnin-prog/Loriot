@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#1a2e1a">
-  <title>🕊️ Loriot d'Europe</title>
+  <title>🕊️ Loriot d'Europe – Channay-sur-Lathan</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -22,65 +22,65 @@
     #app { display:flex; flex-direction:column; height:100%; position: relative; }
     header {
       background: #1a2e1a;
-      padding: max(12px, env(safe-area-inset-top)) 16px 12px 16px;
+      padding: 12px 16px;
       display: flex; align-items: center; justify-content: space-between;
       border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 10;
+      flex-wrap: wrap; gap: 8px;
     }
     .title { font-weight:700; font-size:1.1rem; display:flex; align-items:center; gap:8px; }
     .sync-badge {
-      width:12px; height:12px; border-radius:50%;
+      width:10px; height:10px; border-radius:50%;
       background: #e74c3c;
-      transition: background 0.3s;
+      display: inline-block;
     }
     .sync-badge.online { background: #2ecc71; }
-    .tool-row { display:flex; gap:8px; align-items: center; }
+    .tool-row { display:flex; gap:6px; align-items: center; flex-wrap: wrap; }
     .tool-btn {
-      background: rgba(255,255,255,0.1); border: none;
-      color: #e0e0c0; padding: 8px 10px; border-radius: 8px;
-      font-size: 1.1rem; cursor: pointer;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      color: #e0e0c0; padding: 8px 12px; border-radius: 8px;
+      font-size: 0.9rem; cursor: pointer; white-space: nowrap;
     }
     .tool-btn:active { transform:scale(0.95); }
     .tool-select {
       background: rgba(255,255,255,0.1);
       border: 1px solid rgba(255,255,255,0.2);
-      color: #e0e0c0; padding: 8px 4px 8px 8px;
+      color: #e0e0c0; padding: 8px;
       border-radius: 8px; font-size: 0.9rem; font-weight: bold;
       cursor: pointer; outline: none;
-      -webkit-appearance: none; appearance: none; text-align: center;
     }
-    .tool-select option { background: #1a2e1a; color: #fff; font-weight: bold; }
+    .tool-select option { background: #1a2e1a; color: #fff; }
 
     #map-container { flex:1; position:relative; overflow: hidden; }
     #map { width:100%; height:100%; background:#2a4a34; }
 
     #progress-wrap {
-      position:absolute; top:0; left:0; width:100%; height:6px;
+      position:absolute; top:0; left:0; width:100%; height:5px;
       background:rgba(0,0,0,0.5); z-index:999; display:none;
     }
     #progress-bar { height:100%; width:0%; background:#f5d742; transition: width 0.3s; }
     #progress-label {
-      position:absolute; top:12px; left:50%; transform:translateX(-50%);
+      position:absolute; top:10px; left:50%; transform:translateX(-50%);
       background:rgba(0,0,0,0.8); color:#f5d742;
-      padding:6px 16px; border-radius:20px; font-size:0.8rem; font-weight:bold;
+      padding:5px 14px; border-radius:15px; font-size:0.75rem; font-weight:bold;
       z-index:1000; display:none; white-space: nowrap;
     }
 
     #drawing-hint {
       position:absolute; top:20px; left:50%; transform:translateX(-50%);
       background:rgba(0,0,0,0.8); color:#f5d742;
-      padding:10px 20px; border-radius:30px; font-weight:700; font-size:0.9rem;
-      z-index:500; pointer-events:none; opacity:0; transition:0.3s; white-space: nowrap;
+      padding:8px 16px; border-radius:20px; font-weight:700; font-size:0.85rem;
+      z-index:500; pointer-events:none; opacity:0; transition:0.3s;
     }
     #drawing-hint.show { opacity:1; }
 
     .fab-container {
-      position:absolute; bottom: max(30px, calc(env(safe-area-inset-bottom) + 20px)); right:20px;
-      z-index:600; display:flex; flex-direction:column; gap:16px;
+      position:absolute; bottom: 30px; right:20px;
+      z-index:600; display:flex; flex-direction:column; gap:12px;
     }
     .fab {
-      width:56px; height:56px; border-radius:50%;
+      width:52px; height:52px; border-radius:50%;
       background:#1a2e1a; border:2px solid #4a6a4a;
-      color:#f5d742; font-size:1.6rem;
+      color:#f5d742; font-size:1.4rem;
       display:flex; align-items:center; justify-content:center;
       cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.6);
     }
@@ -89,48 +89,47 @@
     .sheet {
       position:absolute; bottom:0; left:0; right:0;
       background:#121e12;
-      border-radius:24px 24px 0 0; box-shadow:0 -5px 25px rgba(0,0,0,0.9);
+      border-radius:20px 20px 0 0; box-shadow:0 -5px 25px rgba(0,0,0,0.9);
       z-index:700; transform:translateY(100%); transition:0.3s ease-out;
-      max-height: 90%; display:flex; flex-direction:column;
-      padding-bottom: env(safe-area-inset-bottom);
+      max-height: 85%; display:flex; flex-direction:column;
     }
     .sheet.open { transform:translateY(0); }
     .sheet-handle {
-      width:50px; height:6px; background:#4a6a4a; border-radius:10px;
-      margin:12px auto 12px; flex-shrink: 0;
+      width:40px; height:5px; background:#4a6a4a; border-radius:10px;
+      margin:10px auto;
     }
-    .sheet-content { padding:0 20px 10px; overflow-y:auto; flex: 1; }
-    .form-group { margin-bottom:14px; }
-    label { display:block; font-size:0.8rem; text-transform:uppercase; color:#9aba8a; margin-bottom:6px; font-weight:bold; }
-    .btn-group { display:flex; gap:8px; }
+    .sheet-content { padding:0 16px 10px; overflow-y:auto; flex: 1; }
+    .form-group { margin-bottom:12px; }
+    label { display:block; font-size:0.75rem; text-transform:uppercase; color:#9aba8a; margin-bottom:4px; font-weight:bold; }
+    .btn-group { display:flex; gap:6px; }
     .choice-btn {
-      flex:1; padding:10px 4px; background:rgba(255,255,255,0.05);
-      border:1px solid rgba(255,255,255,0.2); border-radius:12px;
-      color:#fff; font-size:0.8rem; font-weight:600; cursor:pointer; text-align:center;
+      flex:1; padding:8px 4px; background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.2); border-radius:10px;
+      color:#fff; font-size:0.75rem; font-weight:600; cursor:pointer; text-align:center;
     }
-    .choice-btn.selected { background:rgba(245,215,66,0.15); border-color:#f5d742; color:#f5d742; }
+    .choice-btn.selected { background:rgba(245,215,66,0.2); border-color:#f5d742; color:#f5d742; }
     input[type="text"], input[type="time"] {
-      width:100%; padding:12px; border-radius:12px;
+      width:100%; padding:10px; border-radius:10px;
       background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2);
-      color:#fff; font-size:1rem;
+      color:#fff; font-size:0.9rem;
     }
-    .photo-area { display:flex; gap:12px; margin-top:4px; overflow-x:auto; padding-bottom:8px; }
-    .photo-thumb { width:50px; height:50px; object-fit:cover; border-radius:12px; border:2px solid #f5d742; }
+    .photo-area { display:flex; gap:8px; margin-top:4px; overflow-x:auto; padding-bottom:4px; }
+    .photo-thumb { width:45px; height:45px; object-fit:cover; border-radius:8px; border:2px solid #f5d742; }
     .photo-wrap { position:relative; flex-shrink:0; }
     .photo-wrap .del {
       position:absolute; top:-6px; right:-6px; background:#e74c3c;
-      color:white; border:none; width:22px; height:22px; border-radius:50%;
-      font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+      color:white; border:none; width:20px; height:20px; border-radius:50%;
+      font-size:0.7rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
     }
-    .actions { display:flex; gap:12px; padding: 10px 20px 20px; background: #121e12; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
-    .btn-primary { flex:2; background:#f5d742; color:#1a2e1a; border:none; padding:14px; border-radius:14px; font-weight:700; font-size:1.1rem; cursor:pointer; }
-    .btn-danger { flex:1; background:rgba(231,76,60,0.1); color:#e74c3c; border:1px solid #e74c3c; padding:14px; border-radius:14px; font-weight:700; cursor:pointer; display:none; }
+    .actions { display:flex; gap:10px; padding: 10px 16px 16px; background: #121e12; border-top: 1px solid rgba(255,255,255,0.05); }
+    .btn-primary { flex:2; background:#f5d742; color:#1a2e1a; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:1rem; cursor:pointer; }
+    .btn-danger { flex:1; background:rgba(231,76,60,0.1); color:#e74c3c; border:1px solid #e74c3c; padding:12px; border-radius:12px; font-weight:700; cursor:pointer; display:none; }
     .btn-danger.show { display:block; }
     .toast {
       position:fixed; top:20px; left:50%; transform:translateX(-50%);
-      background:#f5d742; color:#1a2e1a; padding:12px 24px;
-      border-radius:30px; font-weight:700; z-index:9999;
-      opacity:0; pointer-events:none; transition:0.3s; box-shadow:0 4px 12px rgba(0,0,0,0.3);
+      background:#f5d742; color:#1a2e1a; padding:10px 20px;
+      border-radius:25px; font-weight:700; z-index:9999;
+      opacity:0; pointer-events:none; transition:0.3s;
     }
     .toast.show { opacity:1; }
   </style>
@@ -138,20 +137,17 @@
 <body>
   <div id="app">
     <header>
-      <span class="title">
-        🕊️ Loriot Carto
-        <span class="sync-badge" id="sync-badge" title="État synchronisation"></span>
-      </span>
+      <span class="title">🕊️ Loriot Carto <span class="sync-badge" id="sync-badge"></span></span>
       <div class="tool-row">
         <select id="dl-radius" class="tool-select">
-          <option value="5">5 km</option>
-          <option value="15" selected>15 km</option>
-          <option value="30">30 km</option>
-          <option value="50">50 km</option>
+          <option value="2">2 km</option>
+          <option value="5" selected>5 km</option>
+          <option value="10">10 km</option>
+          <option value="20">20 km</option>
         </select>
-        <button class="tool-btn" id="btn-dl-offline" title="Télécharger la zone autour de votre position GPS">📥</button>
+        <button class="tool-btn" id="btn-dl-offline">📥 Zone</button>
         <button class="tool-btn" id="btn-satellite">🗺️</button>
-        <button class="tool-btn" id="btn-geoloc">📍</button>
+        <button class="tool-btn" id="btn-geoloc">📍 GPS</button>
       </div>
     </header>
 
@@ -159,7 +155,7 @@
       <div id="map"></div>
       <div id="progress-wrap"><div id="progress-bar"></div></div>
       <div id="progress-label"></div>
-      <div id="drawing-hint">🎯 Touchez la carte pour placer le nid</div>
+      <div id="drawing-hint">🎯 Touchez la carte pour placer un nid</div>
       <div class="fab-container">
         <button class="fab" id="fab-draw">⭕</button>
       </div>
@@ -169,19 +165,19 @@
       <div class="sheet-handle" id="btn-close-sheet"></div>
       <div class="sheet-content">
         <div class="form-group">
-          <label>🌿 Indice de Nidification</label>
+          <label>🌿 Nidification</label>
           <div class="btn-group" id="group-nidif">
             <button class="choice-btn" data-val="faible">Chant seul</button>
             <button class="choice-btn" data-val="moyen">Cris alarme</button>
-            <button class="choice-btn" data-val="fort">Transport / Couple</button>
+            <button class="choice-btn" data-val="fort">Transport/Couple</button>
           </div>
         </div>
         <div class="form-group">
-          <label>🌤️ Météo Rapide</label>
+          <label>🌤️ Météo</label>
           <div class="btn-group" id="group-meteo">
-            <button class="choice-btn" data-val="soleil">☀️ Soleil</button>
-            <button class="choice-btn" data-val="nuage">☁️ Couvert</button>
-            <button class="choice-btn" data-val="pluie">🌧️ Pluie</button>
+            <button class="choice-btn" data-val="soleil">☀️</button>
+            <button class="choice-btn" data-val="nuage">☁️</button>
+            <button class="choice-btn" data-val="pluie">🌧️</button>
           </div>
         </div>
         <div class="form-group">
@@ -189,19 +185,19 @@
           <input type="time" id="obs-time">
         </div>
         <div class="form-group">
-          <label>📝 Note (Arbre, comportement...)</label>
-          <input type="text" id="obs-note" placeholder="Ex: Grand peuplier...">
+          <label>📝 Note</label>
+          <input type="text" id="obs-note" placeholder="Arbre, comportement...">
         </div>
         <div class="form-group">
           <label>📸 Photos</label>
           <div class="photo-area" id="photo-area">
-            <button id="btn-add-photo" class="choice-btn" style="flex:none; width:50px; height:50px; font-size:1.5rem; border:2px dashed rgba(255,255,255,0.3);">+</button>
+            <button id="btn-add-photo" class="choice-btn" style="flex:none; width:45px; height:45px; font-size:1.5rem;">+</button>
           </div>
           <input type="file" id="photo-input" accept="image/*" capture="environment" hidden>
         </div>
       </div>
       <div class="actions">
-        <button class="btn-danger" id="btn-delete">Supprimer</button>
+        <button class="btn-danger" id="btn-delete">🗑️</button>
         <button class="btn-primary" id="btn-save">💾 Enregistrer</button>
       </div>
     </div>
@@ -211,7 +207,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // ========== CONFIGURATION FIREBASE (remplacez par vos clés) ==========
+    // ========== CONFIG ==========
     const firebaseConfig = {
       apiKey: "VOTRE_API_KEY",
       authDomain: "VOTRE_PROJECT.firebaseapp.com",
@@ -223,198 +219,123 @@
     };
     const useCloud = firebaseConfig.apiKey !== "VOTRE_API_KEY";
 
-    // ========== INDEXEDDB pour les tuiles ==========
-    function openTilesDB() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open('tilesDB', 1);
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-          if (!db.objectStoreNames.contains('tiles')) {
-            db.createObjectStore('tiles', { keyPath: 'url' });
-          }
-        };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-    }
-
-    async function saveTileToDB(url, blob) {
-      const db = await openTilesDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction('tiles', 'readwrite');
-        const store = tx.objectStore('tiles');
-        store.put({ url, blob });
-        tx.oncomplete = resolve;
-        tx.onerror = reject;
-      });
-    }
-
-    async function getTileFromDB(url) {
-      const db = await openTilesDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction('tiles', 'readonly');
-        const store = tx.objectStore('tiles');
-        const request = store.get(url);
-        request.onsuccess = () => resolve(request.result ? request.result.blob : null);
-        request.onerror = reject;
-      });
-    }
-
-    // ========== SERVICE WORKER ==========
+    // ========== SERVICE WORKER SIMPLE ==========
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         const swCode = `
+          const CACHE = 'loriot-channay';
+          self.addEventListener('install', e => self.skipWaiting());
+          self.addEventListener('activate', e => e.waitUntil(clients.claim()));
           self.addEventListener('fetch', e => {
             if (e.request.method !== 'GET') return;
-            const url = new URL(e.request.url);
-            if (url.hostname === 'tile.openstreetmap.org' || url.hostname === 'server.arcgisonline.com') {
-              e.respondWith(
-                new Promise((resolve) => {
-                  self.clients.matchAll({ type: 'window' }).then(clients => {
-                    if (clients.length > 0) {
-                      clients[0].postMessage({ type: 'GET_TILE', url: e.request.url });
-                    }
-                    const handler = (event) => {
-                      if (event.data && event.data.type === 'TILE_RESPONSE' && event.data.url === e.request.url) {
-                        self.removeEventListener('message', handler);
-                        if (event.data.blob) {
-                          resolve(new Response(new Blob([event.data.blob], { type: 'image/png' }), { status: 200 }));
-                        } else {
-                          fetch(e.request).then(response => {
-                            if (response.status === 200) {
-                              const clone = response.clone();
-                              clone.blob().then(blob => {
-                                if (clients.length > 0) clients[0].postMessage({ type: 'SAVE_TILE', url: e.request.url, blob });
-                              });
-                            }
-                            resolve(response);
-                          }).catch(() => resolve(new Response(null, { status: 404 })));
-                        }
-                      }
-                    };
-                    self.addEventListener('message', handler);
-                    setTimeout(() => {
-                      self.removeEventListener('message', handler);
-                      fetch(e.request).then(response => resolve(response)).catch(() => resolve(new Response(null, { status: 404 })));
-                    }, 3000);
-                  });
-                })
-              );
-            } else {
-              e.respondWith(
-                caches.match(e.request).then(res => res || fetch(e.request).then(r => {
-                  if (r.status === 200) {
-                    const rc = r.clone();
-                    caches.open('loriot-offline-app').then(c => c.put(e.request, rc));
-                  }
-                  return r;
-                }))
-              );
-            }
+            e.respondWith(
+              caches.match(e.request).then(cached => cached || fetch(e.request).then(r => {
+                if (r.status === 200) {
+                  const clone = r.clone();
+                  caches.open(CACHE).then(c => c.put(e.request, clone));
+                }
+                return r;
+              }))
+            );
           });
         `;
         const blob = new Blob([swCode], { type: 'application/javascript' });
-        navigator.serviceWorker.register(URL.createObjectURL(blob)).then(reg => {
-          console.log('✅ Service Worker actif');
-          navigator.serviceWorker.addEventListener('message', async (event) => {
-            if (event.data.type === 'GET_TILE') {
-              const blob = await getTileFromDB(event.data.url);
-              const buffer = blob ? await blob.arrayBuffer() : null;
-              reg.active.postMessage({ type: 'TILE_RESPONSE', url: event.data.url, blob: buffer });
-            } else if (event.data.type === 'SAVE_TILE') {
-              const newBlob = new Blob([event.data.blob], { type: 'image/png' });
-              await saveTileToDB(event.data.url, newBlob);
-            }
-          });
-        }).catch(err => console.warn('Service Worker non enregistré', err));
+        navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
       });
     }
 
-    // ========== APPLICATION PRINCIPALE ==========
+    // ========== APP ==========
     (function() {
-      const STORAGE_KEY = 'loriot_obs_local';
+      const STORAGE = 'loriot_obs_channay';
+      // Centre sur Channay-sur-Lathan (Impasse de la Fontaine)
+      const CENTER = [47.4833, 0.2667];
+      const ZOOM = 14;
+      
       let observations = [], circles = {};
       let map, standardLayer, satelliteLayer, currentLayer = 'standard';
       let drawingMode = false, currentEditId = null;
-      let tempPhotos = [], selectedNidif = null, selectedMeteo = null;
-      let db, observationsRef;
-      let isOnline = navigator.onLine;
+      let tempPhotos = [], selNidif = null, selMeteo = null;
+      let db, obsRef, isOnline = navigator.onLine;
 
       const $ = id => document.getElementById(id);
-      const mapEl = $('map'), sheet = $('sheet');
-      const syncBadge = $('sync-badge');
-
-      function updateOnlineStatus() {
+      
+      function updateOnline() {
         isOnline = navigator.onLine;
-        syncBadge.className = 'sync-badge' + (isOnline ? ' online' : '');
-        syncBadge.title = isOnline ? 'Données synchronisées en ligne' : 'Hors ligne (données locales)';
+        $('sync-badge').className = 'sync-badge' + (isOnline ? ' online' : '');
       }
-      window.addEventListener('online', updateOnlineStatus);
-      window.addEventListener('offline', updateOnlineStatus);
-      updateOnlineStatus();
+      window.addEventListener('online', updateOnline);
+      window.addEventListener('offline', updateOnline);
+      updateOnline();
+
+      function toast(msg) {
+        $('toast').textContent = msg;
+        $('toast').classList.add('show');
+        setTimeout(() => $('toast').classList.remove('show'), 2000);
+      }
 
       async function initData() {
         if (useCloud) {
-          const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
-          const { getDatabase, ref, set, onValue, remove } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
-          const app = initializeApp(firebaseConfig);
-          db = getDatabase(app);
-          observationsRef = ref(db, 'observations');
-          onValue(observationsRef, (snapshot) => {
-            const data = snapshot.val();
-            observations = data ? Object.values(data) : [];
-            rebuildAllCircles();
-            toast(isOnline ? '☁️ Données chargées depuis le cloud' : '📴 Mode hors ligne (données locales)');
+          const fb = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+          const fdb = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+          const app = fb.initializeApp(firebaseConfig);
+          db = fdb.getDatabase(app);
+          obsRef = fdb.ref(db, 'observations');
+          fdb.onValue(obsRef, snap => {
+            observations = snap.val() ? Object.values(snap.val()) : [];
+            rebuildCircles();
           });
         } else {
-          observations = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-          rebuildAllCircles();
+          observations = JSON.parse(localStorage.getItem(STORAGE) || '[]');
+          rebuildCircles();
         }
       }
 
-      function saveObservation(obs) {
+      function saveObs(obs) {
         if (useCloud && db && isOnline) {
           import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(m => {
-            m.set(m.ref(db, 'observations/' + obs.id), obs)
-              .then(() => toast('☁️ Sauvegardé en ligne'))
-              .catch(() => {
-                saveLocal(obs);
-                toast('⚠️ Sauvegarde locale (réessayera plus tard)');
-              });
+            m.set(m.ref(db, 'observations/' + obs.id), obs).catch(() => saveLocal(obs));
           });
-        } else {
-          saveLocal(obs);
-          toast(isOnline ? '⚠️ Configuration cloud absente, stockage local' : '📴 Sauvegardé localement (synchronisation plus tard)');
-        }
+        } else saveLocal(obs);
       }
 
       function saveLocal(obs) {
-        const existing = observations.findIndex(o => o.id === obs.id);
-        if (existing >= 0) observations[existing] = obs; else observations.push(obs);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
-        rebuildAllCircles();
+        const i = observations.findIndex(o => o.id === obs.id);
+        if (i >= 0) observations[i] = obs; else observations.push(obs);
+        localStorage.setItem(STORAGE, JSON.stringify(observations));
+        rebuildCircles();
       }
 
-      function deleteObservation(id) {
+      function deleteObs(id) {
         if (useCloud && db && isOnline) {
           import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(m => {
-            m.remove(m.ref(db, 'observations/' + id)).then(() => toast('🗑️ Supprimé du cloud'));
+            m.remove(m.ref(db, 'observations/' + id));
           });
         } else {
           observations = observations.filter(o => o.id !== id);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
-          rebuildAllCircles();
-          toast('🗑️ Supprimé localement');
+          localStorage.setItem(STORAGE, JSON.stringify(observations));
+          rebuildCircles();
         }
       }
 
-      function toast(msg) {
-        $('toast').textContent = msg; $('toast').classList.add('show');
-        setTimeout(() => $('toast').classList.remove('show'), 2500);
+      function getColor(n) {
+        return n === 'faible' ? '#7CB342' : n === 'moyen' ? '#E67E22' : n === 'fort' ? '#C0392B' : '#f5d742';
+      }
+
+      function drawCircle(obs) {
+        const c = getColor(obs.nidif);
+        const circle = L.circle([obs.lat, obs.lng], { radius: 20, color: c, fillColor: c, fillOpacity: 0.4, weight: 2 }).addTo(map);
+        circle.on('click', () => { if (!drawingMode) openSheet(obs.id); });
+        circles[obs.id] = circle;
+      }
+
+      function rebuildCircles() {
+        Object.values(circles).forEach(c => map.removeLayer(c));
+        circles = {};
+        observations.forEach(drawCircle);
       }
 
       function initMap() {
-        map = L.map('map', { center: [47.2, 0.7], zoom: 11, zoomControl: false });
+        map = L.map('map', { center: CENTER, zoom: ZOOM, zoomControl: false });
         L.control.zoom({ position: 'topright' }).addTo(map);
         standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 });
         satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 });
@@ -422,54 +343,31 @@
 
         map.on('click', e => {
           if (!drawingMode) return;
-          const obs = {
+          saveObs({
             id: 'obs_' + Date.now(),
             lat: e.latlng.lat, lng: e.latlng.lng,
-            time: new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}),
+            time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
             nidif: '', meteo: '', note: '', photos: []
-          };
-          saveObservation(obs);
+          });
           stopDrawing();
-          openSheet(obs.id);
+          openSheet(observations[observations.length - 1].id);
         });
-      }
-
-      function getColor(index) {
-        return index === 'faible' ? '#7CB342' : index === 'moyen' ? '#E67E22' : index === 'fort' ? '#C0392B' : '#f5d742';
-      }
-
-      function drawCircle(obs) {
-        const color = getColor(obs.nidif);
-        const circle = L.circle([obs.lat, obs.lng], { radius: 20, color: color, fillColor: color, fillOpacity: 0.4, weight: 2 }).addTo(map);
-        circle.on('click', () => { if (!drawingMode) openSheet(obs.id); });
-        circles[obs.id] = circle;
-      }
-
-      function rebuildAllCircles() {
-        Object.values(circles).forEach(c => map.removeLayer(c));
-        circles = {};
-        observations.forEach(drawCircle);
       }
 
       function startDrawing() { drawingMode = true; $('fab-draw').classList.add('active'); $('drawing-hint').classList.add('show'); closeSheet(); }
       function stopDrawing() { drawingMode = false; $('fab-draw').classList.remove('active'); $('drawing-hint').classList.remove('show'); }
-      
-      $('fab-draw').addEventListener('click', () => drawingMode ? stopDrawing() : startDrawing());
-      $('btn-close-sheet').addEventListener('click', closeSheet);
 
       function setSelection(group, val) {
-        document.querySelectorAll(`#group-${group} .choice-btn`).forEach(b => {
-          b.classList.toggle('selected', b.dataset.val === val);
-        });
-        if(group === 'nidif') selectedNidif = val;
-        if(group === 'meteo') selectedMeteo = val;
+        document.querySelectorAll(`#group-${group} .choice-btn`).forEach(b => b.classList.toggle('selected', b.dataset.val === val));
+        if (group === 'nidif') selNidif = val;
+        if (group === 'meteo') selMeteo = val;
       }
 
-      document.querySelectorAll('.btn-group').forEach(group => {
-        group.addEventListener('click', e => {
-          if(!e.target.classList.contains('choice-btn')) return;
-          const type = group.id.split('-')[1];
-          const val = e.target.dataset.val === (type==='nidif'?selectedNidif:selectedMeteo) ? '' : e.target.dataset.val;
+      document.querySelectorAll('.btn-group').forEach(g => {
+        g.addEventListener('click', e => {
+          if (!e.target.classList.contains('choice-btn')) return;
+          const type = g.id.split('-')[1];
+          const val = e.target.dataset.val === (type === 'nidif' ? selNidif : selMeteo) ? '' : e.target.dataset.val;
           setSelection(type, val);
         });
       });
@@ -485,148 +383,154 @@
         tempPhotos = [...(obs.photos || [])];
         renderPhotos();
         $('btn-delete').classList.add('show');
-        sheet.classList.add('open');
-        map.setView([obs.lat, obs.lng], 15);
+        $('sheet').classList.add('open');
+        map.setView([obs.lat, obs.lng], 16);
       }
 
-      function closeSheet() { sheet.classList.remove('open'); currentEditId = null; $('btn-delete').classList.remove('show'); }
+      function closeSheet() { $('sheet').classList.remove('open'); currentEditId = null; $('btn-delete').classList.remove('show'); }
+
+      $('btn-close-sheet').addEventListener('click', closeSheet);
+      $('fab-draw').addEventListener('click', () => drawingMode ? stopDrawing() : startDrawing());
 
       $('btn-save').addEventListener('click', () => {
         const obs = observations.find(o => o.id === currentEditId);
+        if (!obs) return;
         obs.time = $('obs-time').value;
         obs.note = $('obs-note').value;
-        obs.nidif = selectedNidif;
-        obs.meteo = selectedMeteo;
+        obs.nidif = selNidif;
+        obs.meteo = selMeteo;
         obs.photos = [...tempPhotos];
-        saveObservation(obs);
+        saveObs(obs);
         closeSheet();
+        toast('💾 Enregistré');
       });
 
       $('btn-delete').addEventListener('click', () => {
-        if(confirm('Supprimer définitivement ce point ?')) {
-          deleteObservation(currentEditId);
-          closeSheet();
-        }
+        if (confirm('Supprimer ?')) { deleteObs(currentEditId); closeSheet(); toast('🗑️ Supprimé'); }
       });
 
       function renderPhotos() {
         document.querySelectorAll('.photo-wrap').forEach(e => e.remove());
-        tempPhotos.forEach((b64, idx) => {
-          const wrap = document.createElement('div'); wrap.className = 'photo-wrap';
-          wrap.innerHTML = `<img class="photo-thumb" src="${b64}"><button class="del">✕</button>`;
-          wrap.querySelector('.del').onclick = (e) => { e.stopPropagation(); tempPhotos.splice(idx,1); renderPhotos(); };
-          $('photo-area').insertBefore(wrap, $('btn-add-photo'));
+        tempPhotos.forEach((b64, i) => {
+          const w = document.createElement('div'); w.className = 'photo-wrap';
+          w.innerHTML = `<img class="photo-thumb" src="${b64}"><button class="del">✕</button>`;
+          w.querySelector('.del').onclick = e => { e.stopPropagation(); tempPhotos.splice(i, 1); renderPhotos(); };
+          $('photo-area').insertBefore(w, $('btn-add-photo'));
         });
       }
+
       $('btn-add-photo').onclick = () => $('photo-input').click();
-      $('photo-input').onchange = (e) => {
-        const file = e.target.files[0]; if(!file) return;
-        const reader = new FileReader();
-        reader.onload = () => {
+      $('photo-input').onchange = e => {
+        const f = e.target.files[0]; if (!f) return;
+        const r = new FileReader();
+        r.onload = () => {
           const img = new Image();
           img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ratio = Math.min(600/img.width, 600/img.height, 1);
-            canvas.width = img.width*ratio; canvas.height = img.height*ratio;
-            canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-            tempPhotos.push(canvas.toDataURL('image/jpeg', 0.6));
+            const c = document.createElement('canvas');
+            const ratio = Math.min(600 / img.width, 600 / img.height, 1);
+            c.width = img.width * ratio; c.height = img.height * ratio;
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            tempPhotos.push(c.toDataURL('image/jpeg', 0.6));
             renderPhotos();
           };
-          img.src = reader.result;
+          img.src = r.result;
         };
-        reader.readAsDataURL(file);
+        r.readAsDataURL(f);
+        $('photo-input').value = '';
       };
 
       $('btn-satellite').onclick = () => {
-        map.removeLayer(currentLayer === 'standard' ? standardLayer : satelliteLayer);
-        currentLayer = currentLayer === 'standard' ? 'satellite' : 'standard';
-        map.addLayer(currentLayer === 'standard' ? standardLayer : satelliteLayer);
+        if (currentLayer === 'standard') {
+          map.removeLayer(standardLayer);
+          map.addLayer(satelliteLayer);
+          currentLayer = 'satellite';
+        } else {
+          map.removeLayer(satelliteLayer);
+          map.addLayer(standardLayer);
+          currentLayer = 'standard';
+        }
       };
 
-      // ----- Fonction commune de géolocalisation GPS (précise) -----
-      function getUserGPSCoords() {
+      // ========== GPS ==========
+      function getGPS() {
         return new Promise((resolve, reject) => {
-          if (!navigator.geolocation) {
-            reject(new Error('Géolocalisation non supportée'));
-            return;
-          }
+          if (!navigator.geolocation) return reject('Pas de GPS');
           navigator.geolocation.getCurrentPosition(
-            (position) => resolve({
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude
-            }),
-            (error) => reject(error),
+            pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            err => reject(err),
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
           );
         });
       }
 
-      // Bouton 📍 : centrer la carte sur la position GPS de l'appareil
       $('btn-geoloc').onclick = async () => {
         try {
-          const coords = await getUserGPSCoords();
-          map.setView([coords.latitude, coords.longitude], 15);
-          toast('📍 Position GPS précise trouvée');
-        } catch (err) {
-          console.warn('Erreur géolocalisation:', err);
-          toast('⚠️ Impossible d’obtenir votre position GPS');
+          const pos = await getGPS();
+          map.setView([pos.lat, pos.lng], 16);
+          toast('📍 Position GPS');
+        } catch (e) {
+          toast('⚠️ GPS indisponible');
         }
       };
 
-      // Bouton 📥 : centrer sur la position GPS et télécharger les tuiles
       $('btn-dl-offline').onclick = async () => {
-        const radiusKm = parseInt($('dl-radius').value) || 15;
+        const radiusKm = parseInt($('dl-radius').value) || 5;
+        let center;
 
         try {
-          const coords = await getUserGPSCoords();
-          map.setView([coords.latitude, coords.longitude], 15);
-          toast('📍 Position GPS trouvée. Téléchargement des tuiles...');
-          downloadAround(L.latLng(coords.latitude, coords.longitude));
-        } catch (err) {
-          console.warn('Erreur géolocalisation:', err);
-          toast('⚠️ Position GPS indisponible. Téléchargement autour du centre de la carte.');
-          downloadAround(map.getCenter());
+          const pos = await getGPS();
+          center = { lat: pos.lat, lng: pos.lng };
+          map.setView([center.lat, center.lng], 15);
+          toast('📍 Téléchargement autour de vous...');
+        } catch (e) {
+          const c = map.getCenter();
+          center = { lat: c.lat, lng: c.lng };
+          toast('⚠️ Centre carte utilisé');
         }
-      };
 
-      async function downloadAround(centerLatLng) {
-        const radiusKm = parseInt($('dl-radius').value) || 15;
-        const center = centerLatLng;
         const latDelta = radiusKm / 111.32;
         const lngDelta = latDelta / Math.cos(center.lat * Math.PI / 180);
-        const bounds = L.latLngBounds([center.lat - latDelta, center.lng - lngDelta], [center.lat + latDelta, center.lng + lngDelta]);
+        const bounds = L.latLngBounds(
+          [center.lat - latDelta, center.lng - lngDelta],
+          [center.lat + latDelta, center.lng + lngDelta]
+        );
 
-        const baseUrl = currentLayer === 'satellite' ?
+        const base = currentLayer === 'satellite' ?
           'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' :
           'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
         const urls = [];
-        for (let z = 10; z <= 15; z++) {
-          const nw = map.project(bounds.getNorthWest(), z), se = map.project(bounds.getSouthEast(), z);
-          for (let x = Math.floor(nw.x/256); x <= Math.floor(se.x/256); x++) {
-            for (let y = Math.floor(nw.y/256); y <= Math.floor(se.y/256); y++) {
-              urls.push(baseUrl.replace('{z}',z).replace('{x}',x).replace('{y}',y));
+        for (let z = 12; z <= 17; z++) {
+          const nw = map.project(bounds.getNorthWest(), z);
+          const se = map.project(bounds.getSouthEast(), z);
+          for (let x = Math.floor(nw.x / 256); x <= Math.floor(se.x / 256); x++) {
+            for (let y = Math.floor(nw.y / 256); y <= Math.floor(se.y / 256); y++) {
+              urls.push(base.replace('{z}', z).replace('{x}', x).replace('{y}', y));
             }
           }
         }
 
-        $('progress-wrap').style.display = 'block'; $('progress-label').style.display = 'block';
+        $('progress-wrap').style.display = 'block';
+        $('progress-label').style.display = 'block';
         let done = 0;
         for (const url of urls) {
           try {
-            const response = await fetch(url);
-            if (response.ok) {
-              const blob = await response.blob();
-              await saveTileToDB(url, blob);
+            const res = await fetch(url);
+            if (res.ok) {
+              const cache = await caches.open('loriot-channay');
+              cache.put(url, res.clone());
             }
-          } catch(e) {}
+          } catch (e) {}
           done++;
-          $('progress-bar').style.width = Math.round((done/urls.length)*100) + '%';
-          $('progress-label').textContent = `${done}/${urls.length} tuiles (${radiusKm}km)`;
+          $('progress-bar').style.width = Math.round((done / urls.length) * 100) + '%';
+          $('progress-label').textContent = `${done}/${urls.length} tuiles (${radiusKm} km)`;
         }
-        $('progress-label').textContent = `✅ Cartes ${radiusKm}km enregistrées en DB !`;
-        setTimeout(() => { $('progress-wrap').style.display = 'none'; $('progress-label').textContent = ''; }, 3000);
-      }
+        $('progress-label').textContent = '✅ Cartes enregistrées !';
+        setTimeout(() => {
+          $('progress-wrap').style.display = 'none';
+          $('progress-label').style.display = 'none';
+        }, 2500);
+      };
 
       initData();
       initMap();
