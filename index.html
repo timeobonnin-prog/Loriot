@@ -6,12 +6,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#1a2e1a">
-  <title>🕊️ Loriot d'Europe – Obs 37</title>
+  <title>🕊️ Loriot d'Europe</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
       background: #0b1a0e;
       color: #e0e0c0;
       height: 100vh;
@@ -21,59 +21,492 @@
       -webkit-tap-highlight-color: transparent;
     }
     #app { display:flex; flex-direction:column; height:100%; }
+    
+    /* Header ultra épuré */
     header {
-      background: linear-gradient(135deg, #1a2e1a, #0f1f0f);
-      padding: 8px 12px;
+      background: #1a2e1a;
+      padding: 12px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 6px;
       border-bottom: 1px solid rgba(255,255,255,0.1);
-      flex-wrap: wrap;
       z-index: 10;
     }
-    .title { font-weight:700; font-size:1rem; white-space:nowrap; }
-    .badge {
-      background: rgba(255,255,255,0.15);
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      white-space: nowrap;
-    }
-    .tool-row { display:flex; gap:6px; flex-wrap:wrap; }
+    .title { font-weight:700; font-size:1.1rem; }
+    .tool-row { display:flex; gap:10px; }
     .tool-btn {
       background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
+      border: none;
       color: #e0e0c0;
-      padding: 7px 12px;
-      border-radius: 10px;
-      font-size: 0.8rem;
-      font-weight: 600;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 1.1rem;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      backdrop-filter: blur(5px);
-      white-space: nowrap;
     }
-    .tool-btn:active { transform:scale(0.96); }
-    .tool-btn.active { background:#f5d742; color:#1a2e1a; border-color:#f5d742; }
+    .tool-btn:active { transform:scale(0.95); }
 
+    /* Carte */
     #map-container { flex:1; position:relative; }
     #map { width:100%; height:100%; background:#2a4a34; }
 
-    /* Barre de progression */
+    /* Barre de progression (Téléchargement 50km) */
     #progress-wrap {
-      position:absolute; top:0; left:0; width:100%; height:5px;
-      background:rgba(0,0,0,0.4); z-index:999;
-      display:none;
+      position:absolute; top:0; left:0; width:100%; height:6px;
+      background:rgba(0,0,0,0.5); z-index:999; display:none;
     }
     #progress-bar {
       height:100%; width:0%;
       background:#f5d742;
-      transition: width 0.2s;
-      box-shadow:0 0 12px #f5d742;
+      transition: width 0.3s;
     }
+    #progress-label {
+      position:absolute; top:12px; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,0.8); color:#f5d742;
+      padding:6px 16px; border-radius:20px; font-size:0.8rem; font-weight:bold;
+      z-index:1000; display:none;
+    }
+
+    /* Mode Dessin */
+    #drawing-hint {
+      position:absolute; top:20px; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,0.8); color:#f5d742;
+      padding:10px 20px; border-radius:30px; font-weight:700; font-size:0.9rem;
+      z-index:500; pointer-events:none; opacity:0; transition:0.3s;
+    }
+    #drawing-hint.show { opacity:1; }
+
+    /* Boutons Flottants (FAB) */
+    .fab-container {
+      position:absolute; bottom:24px; right:20px; z-index:600;
+      display:flex; flex-direction:column; gap:16px;
+    }
+    .fab {
+      width:56px; height:56px; border-radius:50%;
+      background:#1a2e1a; border:2px solid #4a6a4a;
+      color:#f5d742; font-size:1.6rem;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.4);
+    }
+    .fab.active { background:#f5d742; color:#1a2e1a; border-color:#f5d742; }
+
+    /* Formulaire (Fiche de saisie épurée) */
+    .sheet {
+      position:absolute; bottom:0; left:0; right:0;
+      background:#121e12;
+      border-radius:24px 24px 0 0; box-shadow:0 -5px 25px rgba(0,0,0,0.8);
+      z-index:700; transform:translateY(100%); transition:0.3s ease-out;
+      max-height:85vh; display:flex; flex-direction:column;
+    }
+    .sheet.open { transform:translateY(0); }
+    .sheet-handle {
+      width:50px; height:6px; background:#4a6a4a; border-radius:10px;
+      margin:12px auto 16px;
+    }
+    .sheet-content { padding:0 20px 24px; overflow-y:auto; }
+    
+    .form-group { margin-bottom:16px; }
+    label {
+      display:block; font-size:0.8rem; text-transform:uppercase;
+      color:#9aba8a; margin-bottom:8px; font-weight:bold;
+    }
+    
+    /* Boutons de sélection rapide au lieu de menus déroulants */
+    .btn-group { display:flex; gap:8px; }
+    .choice-btn {
+      flex:1; padding:12px 6px; background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.2); border-radius:12px;
+      color:#fff; font-size:0.85rem; font-weight:600; cursor:pointer;
+      text-align:center;
+    }
+    .choice-btn.selected {
+      background:rgba(245,215,66,0.15); border-color:#f5d742; color:#f5d742;
+    }
+
+    input[type="text"], input[type="time"] {
+      width:100%; padding:14px; border-radius:12px;
+      background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2);
+      color:#fff; font-size:1rem;
+    }
+
+    .photo-area { display:flex; gap:12px; margin-top:8px; overflow-x:auto; padding-bottom:8px; }
+    .photo-thumb { width:60px; height:60px; object-fit:cover; border-radius:12px; border:2px solid #f5d742; }
+    .photo-wrap { position:relative; flex-shrink:0; }
+    .photo-wrap .del {
+      position:absolute; top:-6px; right:-6px; background:#e74c3c;
+      color:white; border:none; width:24px; height:24px; border-radius:50%;
+      font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    }
+
+    .actions { display:flex; gap:12px; margin-top:20px; }
+    .btn-primary {
+      flex:2; background:#f5d742; color:#1a2e1a; border:none; padding:16px;
+      border-radius:14px; font-weight:700; font-size:1.1rem; cursor:pointer;
+    }
+    .btn-danger {
+      flex:1; background:rgba(231,76,60,0.1); color:#e74c3c; border:1px solid #e74c3c;
+      padding:16px; border-radius:14px; font-weight:700; cursor:pointer; display:none;
+    }
+    .btn-danger.show { display:block; }
+
+    .toast {
+      position:fixed; top:20px; left:50%; transform:translateX(-50%);
+      background:#f5d742; color:#1a2e1a; padding:12px 24px;
+      border-radius:30px; font-weight:700; z-index:9999;
+      opacity:0; pointer-events:none; transition:0.3s; box-shadow:0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toast.show { opacity:1; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <span class="title">🕊️ Loriot Carto</span>
+      <div class="tool-row">
+        <!-- Bouton de téléchargement 50km de la zone visible -->
+        <button class="tool-btn" id="btn-dl-offline" title="Télécharger 50km hors-ligne">📥 50km</button>
+        <button class="tool-btn" id="btn-satellite">🗺️</button>
+        <button class="tool-btn" id="btn-geoloc">📍</button>
+      </div>
+    </header>
+
+    <div id="map-container">
+      <div id="map"></div>
+      <div id="progress-wrap"><div id="progress-bar"></div></div>
+      <div id="progress-label"></div>
+      <div id="drawing-hint">🎯 Touchez la carte pour placer le nid</div>
+      <div class="fab-container">
+        <button class="fab" id="fab-draw">⭕</button>
+      </div>
+    </div>
+
+    <!-- Formulaire Épuré -->
+    <div class="sheet" id="sheet">
+      <div class="sheet-handle" id="btn-close-sheet"></div>
+      <div class="sheet-content">
+        
+        <div class="form-group">
+          <label>🌿 Indice de Nidification</label>
+          <div class="btn-group" id="group-nidif">
+            <button class="choice-btn" data-val="faible">Chant seul</button>
+            <button class="choice-btn" data-val="moyen">Cris alarme</button>
+            <button class="choice-btn" data-val="fort">Transport / Couple</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>🌤️ Météo Rapide</label>
+          <div class="btn-group" id="group-meteo">
+            <button class="choice-btn" data-val="soleil">☀️ Soleil</button>
+            <button class="choice-btn" data-val="nuage">☁️ Couvert</button>
+            <button class="choice-btn" data-val="pluie">🌧️ Pluie</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>🕒 Heure</label>
+          <input type="time" id="obs-time">
+        </div>
+
+        <div class="form-group">
+          <label>📝 Note (Arbre, comportement...)</label>
+          <input type="text" id="obs-note" placeholder="Ex: Grand peuplier, oiseau très actif...">
+        </div>
+
+        <div class="form-group">
+          <label>📸 Photos</label>
+          <div class="photo-area" id="photo-area">
+            <button id="btn-add-photo" class="choice-btn" style="flex:none; width:60px; height:60px; font-size:1.5rem; border:2px dashed rgba(255,255,255,0.3);">+</button>
+          </div>
+          <input type="file" id="photo-input" accept="image/*" capture="environment" hidden>
+        </div>
+
+        <div class="actions">
+          <button class="btn-danger" id="btn-delete">Supprimer</button>
+          <button class="btn-primary" id="btn-save">💾 Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // ===================== CONFIGURATION FIREBASE =====================
+    // 1. Crée un projet sur https://console.firebase.google.com
+    // 2. Active "Realtime Database"
+    // 3. Remplace les valeurs ci-dessous par celles de ton projet pour activer la synchro partout.
+    const firebaseConfig = {
+      apiKey: "VOTRE_API_KEY",
+      authDomain: "VOTRE_PROJECT.firebaseapp.com",
+      databaseURL: "https://VOTRE_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "VOTRE_PROJECT",
+      storageBucket: "VOTRE_PROJECT.appspot.com",
+      messagingSenderId: "...",
+      appId: "..."
+    };
+    const useCloud = firebaseConfig.apiKey !== "VOTRE_API_KEY";
+
+    // ===================== SERVICE WORKER (HORS LIGNE) =====================
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const swCode = `
+          const CACHE = 'loriot-offline-app';
+          const ASSETS = ['/', 'index.html', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'];
+          self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS))));
+          self.addEventListener('fetch', e => {
+            if (e.request.method !== 'GET') return;
+            e.respondWith(caches.match(e.request).then(res => res || fetch(e.request).then(r => {
+              if (r.status === 200) { const rc = r.clone(); caches.open(CACHE).then(c => c.put(e.request, rc)); }
+              return r;
+            })));
+          });
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(blob));
+      });
+    }
+
+    // ===================== APPLICATION =====================
+    (function() {
+      const STORAGE_KEY = 'loriot_obs_local';
+      let observations = [], circles = {};
+      let map, standardLayer, satelliteLayer, currentLayer = 'standard';
+      let drawingMode = false, currentEditId = null;
+      let tempPhotos = [], selectedNidif = null, selectedMeteo = null;
+      let db, observationsRef;
+
+      const $ = id => document.getElementById(id);
+      const mapEl = $('map'), sheet = $('sheet');
+      
+      // Initialisation des données (Local + Cloud si configuré)
+      async function initData() {
+        if (useCloud) {
+          const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+          const { getDatabase, ref, set, onValue, remove } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+          const app = initializeApp(firebaseConfig);
+          db = getDatabase(app);
+          observationsRef = ref(db, 'observations');
+          onValue(observationsRef, (snapshot) => {
+            const data = snapshot.val();
+            observations = data ? Object.values(data) : [];
+            rebuildAllCircles();
+          });
+        } else {
+          observations = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+          rebuildAllCircles();
+        }
+      }
+
+      function saveObservation(obs) {
+        if (useCloud && db) {
+          import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(m => {
+            m.set(m.ref(db, 'observations/' + obs.id), obs).catch(() => toast('⚠️ Hors ligne (sauvegarde locale en attente)'));
+          });
+        } else {
+          const existing = observations.findIndex(o => o.id === obs.id);
+          if (existing >= 0) observations[existing] = obs; else observations.push(obs);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
+          rebuildAllCircles();
+        }
+      }
+
+      function deleteObservation(id) {
+        if (useCloud && db) {
+          import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(m => m.remove(m.ref(db, 'observations/' + id)));
+        } else {
+          observations = observations.filter(o => o.id !== id);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
+          rebuildAllCircles();
+        }
+      }
+
+      function toast(msg) {
+        $('toast').textContent = msg; $('toast').classList.add('show');
+        setTimeout(() => $('toast').classList.remove('show'), 2500);
+      }
+
+      // Initialisation de la carte
+      function initMap() {
+        // Centrage par défaut sur l'Indre-et-Loire
+        map = L.map('map', { center: [47.2, 0.7], zoom: 11, zoomControl: false });
+        L.control.zoom({ position: 'topright' }).addTo(map);
+        standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 });
+        satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 });
+        standardLayer.addTo(map);
+
+        map.on('click', e => {
+          if (!drawingMode) return;
+          const obs = {
+            id: 'obs_' + Date.now(),
+            lat: e.latlng.lat, lng: e.latlng.lng,
+            time: new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}),
+            nidif: '', meteo: '', note: '', photos: []
+          };
+          saveObservation(obs);
+          stopDrawing();
+          openSheet(obs.id);
+        });
+      }
+
+      // Dessin des cercles
+      function getColor(index) {
+        return index === 'faible' ? '#7CB342' : index === 'moyen' ? '#E67E22' : index === 'fort' ? '#C0392B' : '#f5d742';
+      }
+
+      function drawCircle(obs) {
+        const color = getColor(obs.nidif);
+        const circle = L.circle([obs.lat, obs.lng], { radius: 300, color: color, fillColor: color, fillOpacity: 0.4, weight: 2 }).addTo(map);
+        circle.on('click', () => { if (!drawingMode) openSheet(obs.id); });
+        circles[obs.id] = circle;
+      }
+
+      function rebuildAllCircles() {
+        Object.values(circles).forEach(c => map.removeLayer(c));
+        circles = {};
+        observations.forEach(drawCircle);
+      }
+
+      // UI Actions
+      function startDrawing() { drawingMode = true; $('fab-draw').classList.add('active'); $('drawing-hint').classList.add('show'); closeSheet(); }
+      function stopDrawing() { drawingMode = false; $('fab-draw').classList.remove('active'); $('drawing-hint').classList.remove('show'); }
+      
+      $('fab-draw').addEventListener('click', () => drawingMode ? stopDrawing() : startDrawing());
+      $('btn-close-sheet').addEventListener('click', closeSheet);
+
+      // Gestion Formulaire
+      function setSelection(group, val) {
+        document.querySelectorAll(`#group-${group} .choice-btn`).forEach(b => {
+          b.classList.toggle('selected', b.dataset.val === val);
+        });
+        if(group === 'nidif') selectedNidif = val;
+        if(group === 'meteo') selectedMeteo = val;
+      }
+
+      document.querySelectorAll('.btn-group').forEach(group => {
+        group.addEventListener('click', e => {
+          if(!e.target.classList.contains('choice-btn')) return;
+          const type = group.id.split('-')[1];
+          const val = e.target.dataset.val === (type==='nidif'?selectedNidif:selectedMeteo) ? '' : e.target.dataset.val;
+          setSelection(type, val);
+        });
+      });
+
+      function openSheet(id) {
+        currentEditId = id;
+        const obs = observations.find(o => o.id === id);
+        if (!obs) return;
+        $('obs-time').value = obs.time || '';
+        $('obs-note').value = obs.note || '';
+        setSelection('nidif', obs.nidif || '');
+        setSelection('meteo', obs.meteo || '');
+        tempPhotos = [...(obs.photos || [])];
+        renderPhotos();
+        $('btn-delete').classList.add('show');
+        sheet.classList.add('open');
+        map.setView([obs.lat, obs.lng], 15);
+      }
+
+      function closeSheet() { sheet.classList.remove('open'); currentEditId = null; $('btn-delete').classList.remove('show'); }
+
+      $('btn-save').addEventListener('click', () => {
+        const obs = observations.find(o => o.id === currentEditId);
+        obs.time = $('obs-time').value;
+        obs.note = $('obs-note').value;
+        obs.nidif = selectedNidif;
+        obs.meteo = selectedMeteo;
+        obs.photos = [...tempPhotos];
+        saveObservation(obs);
+        closeSheet();
+        toast('💾 Nid enregistré');
+      });
+
+      $('btn-delete').addEventListener('click', () => {
+        if(confirm('Supprimer définitivement ce point ?')) {
+          deleteObservation(currentEditId);
+          closeSheet();
+          toast('🗑️ Supprimé');
+        }
+      });
+
+      // Photos
+      function renderPhotos() {
+        document.querySelectorAll('.photo-wrap').forEach(e => e.remove());
+        tempPhotos.forEach((b64, idx) => {
+          const wrap = document.createElement('div'); wrap.className = 'photo-wrap';
+          wrap.innerHTML = `<img class="photo-thumb" src="${b64}"><button class="del">✕</button>`;
+          wrap.querySelector('.del').onclick = (e) => { e.stopPropagation(); tempPhotos.splice(idx,1); renderPhotos(); };
+          $('photo-area').insertBefore(wrap, $('btn-add-photo'));
+        });
+      }
+      $('btn-add-photo').onclick = () => $('photo-input').click();
+      $('photo-input').onchange = (e) => {
+        const file = e.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ratio = Math.min(600/img.width, 600/img.height, 1);
+            canvas.width = img.width*ratio; canvas.height = img.height*ratio;
+            canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+            tempPhotos.push(canvas.toDataURL('image/jpeg', 0.6));
+            renderPhotos();
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      };
+
+      // Header tools
+      $('btn-satellite').onclick = () => {
+        map.removeLayer(currentLayer === 'standard' ? standardLayer : satelliteLayer);
+        currentLayer = currentLayer === 'standard' ? 'satellite' : 'standard';
+        map.addLayer(currentLayer === 'standard' ? standardLayer : satelliteLayer);
+      };
+      $('btn-geoloc').onclick = () => navigator.geolocation.getCurrentPosition(pos => map.setView([pos.coords.latitude, pos.coords.longitude], 15));
+      
+      // TÉLÉCHARGEMENT HORS LIGNE (50KM)
+      $('btn-dl-offline').onclick = async () => {
+        const center = map.getCenter();
+        // 50km ≈ 0.45 degrés
+        const latDelta = 0.45; 
+        const lngDelta = 0.45 / Math.cos(center.lat * Math.PI / 180);
+        const bounds = L.latLngBounds([center.lat - latDelta, center.lng - lngDelta], [center.lat + latDelta, center.lng + lngDelta]);
+        
+        const urls = [];
+        const baseUrl = currentLayer === 'satellite' ? 
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' : 
+          'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+        
+        // On télécharge les zooms 10 à 15 pour économiser la mémoire du téléphone
+        for (let z = 10; z <= 15; z++) {
+          const nw = map.project(bounds.getNorthWest(), z), se = map.project(bounds.getSouthEast(), z);
+          for (let x = Math.floor(nw.x/256); x <= Math.floor(se.x/256); x++) {
+            for (let y = Math.floor(nw.y/256); y <= Math.floor(se.y/256); y++) {
+              urls.push(baseUrl.replace('{z}',z).replace('{x}',x).replace('{y}',y));
+            }
+          }
+        }
+        
+        $('progress-wrap').style.display = 'block'; $('progress-label').style.display = 'block';
+        const cache = await caches.open('loriot-offline-app');
+        let done = 0;
+        for (const url of urls) {
+          try { const res = await fetch(url); if (res.ok) cache.put(url, res.clone()); } catch(e) {}
+          done++;
+          $('progress-bar').style.width = Math.round((done/urls.length)*100) + '%';
+          $('progress-label').textContent = `${done}/${urls.length} tuiles (50km)`;
+        }
+        $('progress-label').textContent = '✅ Cartes 50km stockées !';
+        setTimeout(() => { $('progress-wrap').style.display = 'none'; $('progress-label').style.display = 'none'; }, 3000);
+      };
+
+      initData();
+      initMap();
+    })();
+  </script>
+</body>
+</html>
     #progress-label {
       position:absolute; top:8px; left:50%; transform:translateX(-50%);
       background:rgba(0,0,0,0.75); color:#f5d742;
