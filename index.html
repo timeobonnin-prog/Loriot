@@ -828,7 +828,8 @@
         transform: translateX(-50%) translateY(0);
     }
 
-    /* ============ RESPONSIVE ============ */
+    /* ============ RESPONSIVE : SMARTPHONE (<768px) ============ */
+    /* Les valeurs de base sont déjà pour smartphone */
     @media (max-width: 480px) {
         .security-card {
             padding: 30px 20px 28px;
@@ -866,22 +867,95 @@
         }
     }
 
-    @media (min-width: 768px) {
+    /* ============ RESPONSIVE : TABLETTE (768px - 1023px) ============ */
+    @media (min-width: 768px) and (max-width: 1023px) {
         #observations-panel {
             width: 380px;
+            max-width: 45vw;
         }
         #observation-sheet {
-            max-width: 500px;
+            max-width: 520px;
             left: 50%;
             transform: translateX(-50%) translateY(100%);
             border-radius: 24px 24px 0 0;
+            bottom: 0;
+            right: auto;
         }
         #observation-sheet.open {
             transform: translateX(-50%) translateY(0);
         }
         .fab-container {
             bottom: 24px;
-            right: 24px;
+            right: 20px;
+        }
+        .fab {
+            width: 58px;
+            height: 58px;
+            font-size: 1.6rem;
+        }
+        #top-bar {
+            padding: 14px 20px;
+            min-height: 60px;
+        }
+        #top-bar .app-title {
+            font-size: 1.05rem;
+        }
+    }
+
+    /* ============ RESPONSIVE : PC / GRANDS ÉCRANS (≥1024px) ============ */
+    @media (min-width: 1024px) {
+        #observations-panel {
+            width: 400px;
+            max-width: 35vw;
+        }
+        #observation-sheet {
+            max-width: 640px;
+            max-height: 70vh;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            border-radius: 24px 24px 0 0;
+            bottom: 0;
+            right: auto;
+        }
+        #observation-sheet.open {
+            transform: translateX(-50%) translateY(0);
+        }
+        .fab-container {
+            bottom: 28px;
+            right: 28px;
+            gap: 16px;
+        }
+        .fab {
+            width: 64px;
+            height: 64px;
+            font-size: 1.8rem;
+        }
+        #top-bar {
+            padding: 16px 28px;
+            min-height: 68px;
+        }
+        #top-bar .app-title {
+            font-size: 1.15rem;
+        }
+        #top-bar .btn-geoloc {
+            width: 42px;
+            height: 42px;
+            font-size: 1.3rem;
+        }
+        .security-card {
+            max-width: 460px;
+            padding: 50px 40px 45px;
+        }
+        .security-card h1 {
+            font-size: 1.7rem;
+        }
+        .form-group label {
+            font-size: 0.85rem;
+        }
+        .form-group select,
+        .form-group input[type="text"] {
+            padding: 14px 16px;
+            font-size: 1rem;
         }
     }
 
@@ -1176,11 +1250,6 @@
                     if (!isDrawingMode) return;
                     handleMapClickForDrawing(e.latlng);
                 });
-
-                // Clic sur un cercle existant → ouvrir la fiche
-                map.on('popupopen', function() {
-                    // On utilise les popups Leaflet pour afficher un résumé
-                });
             }
 
             function rebuildAllCircles() {
@@ -1222,7 +1291,6 @@
                 // Clic sur le cercle → ouvrir fiche d'édition
                 circle.on('click', function(ev) {
                     if (isDrawingMode) {
-                        // En mode dessin, on ne veut pas ouvrir la fiche
                         L.DomEvent.stopPropagation(ev);
                         return;
                     }
@@ -1230,22 +1298,15 @@
                     L.DomEvent.stopPropagation(ev);
                 });
 
-                // Si le cercle est déplacé (drag), mettre à jour les coordonnées
-                circle.dragging = false;
-                // On rend les cercles "draggables" via un plugin simple ? 
-                // Alternative : on ajoute la capacité de drag manuellement
                 enableCircleDrag(circle, obs.id);
-
                 mapCircles[obs.id] = circle;
             }
 
             function enableCircleDrag(circle, obsId) {
-                // Activation du déplacement par drag
                 let dragStartLatLng = null;
 
                 circle.on('mousedown', function(e) {
                     if (isDrawingMode) return;
-                    // On démarre un drag simple
                     map.dragging.disable();
                     dragStartLatLng = e.latlng;
                     map.getContainer().style.cursor = 'grabbing';
@@ -1264,7 +1325,6 @@
                     const finalLatLng = circle.getLatLng();
                     dragStartLatLng = null;
 
-                    // Mettre à jour l'observation
                     const obs = observations.find(o => o.id === obsId);
                     if (obs) {
                         obs.lat = finalLatLng.lat;
@@ -1277,7 +1337,6 @@
                 map.on('mousemove', onMouseMove);
                 map.on('mouseup', onMouseUp);
 
-                // Nettoyage
                 circle._dragCleanup = function() {
                     map.off('mousemove', onMouseMove);
                     map.off('mouseup', onMouseUp);
@@ -1285,7 +1344,6 @@
             }
 
             function handleMapClickForDrawing(latlng) {
-                // Créer une nouvelle observation temporaire
                 const newObs = {
                     id: generateId(),
                     lat: latlng.lat,
@@ -1301,12 +1359,8 @@
                 saveObservations();
                 createCircleOnMap(newObs);
 
-                // Désactiver le mode dessin
                 setDrawingMode(false);
-
-                // Ouvrir la fiche pour cette nouvelle observation
                 openObservationSheet(newObs.id);
-
                 showToast('✅ Zone créée ! Remplissez les détails.');
             }
 
@@ -1317,7 +1371,6 @@
                     $fabDraw.textContent = '✕';
                     $mapContainer.classList.add('drawing-mode');
                     $drawingIndicator.classList.add('active');
-                    // Fermer la fiche si ouverte
                     closeObservationSheet();
                     closePanel();
                 } else {
@@ -1334,34 +1387,26 @@
                 const obs = observations.find(o => o.id === obsId);
                 if (!obs) return;
 
-                // Remplir le formulaire
                 $nestingIndex.value = obs.nestingIndex || '';
                 selectedWeather = obs.weather || null;
                 tempPhotos = [...(obs.photos || [])];
 
-                // Mettre à jour les boutons météo
                 document.querySelectorAll('#weather-options .weather-btn').forEach(btn => {
                     btn.classList.toggle('selected', btn.dataset.weather === selectedWeather);
                 });
 
-                // Mettre à jour la galerie
                 renderPhotoGallery();
 
-                // Titre
                 if (obs.nestingIndex) {
                     $sheetTitle.textContent = '✏️ Modifier l\'observation';
                 } else {
                     $sheetTitle.textContent = '📋 Nouvelle observation';
                 }
 
-                // Bouton supprimer
                 $btnDeleteObs.classList.remove('hidden');
-
-                // Afficher
                 $observationSheet.classList.add('open');
                 $sheetBackdrop.classList.add('active');
 
-                // Centrer la carte sur le cercle
                 map.setView([obs.lat, obs.lng], Math.max(map.getZoom(), 15), { animate: true });
             }
 
@@ -1379,11 +1424,9 @@
             }
 
             function renderPhotoGallery() {
-                // Vider sauf le bouton d'ajout
                 const existingAddBtn = $photoGallery.querySelector('#btn-add-photo');
                 $photoGallery.innerHTML = '';
 
-                // Afficher les photos temporaires
                 tempPhotos.forEach((photoBase64, index) => {
                     const wrapper = document.createElement('div');
                     wrapper.className = 'photo-thumb-wrapper';
@@ -1394,7 +1437,6 @@
                     img.alt = 'Photo ' + (index + 1);
                     img.title = 'Photo ' + (index + 1);
                     img.addEventListener('click', () => {
-                        // Ouvrir en grand dans un nouvel onglet
                         const win = window.open('', '_blank');
                         if (win) {
                             win.document.write(
@@ -1417,7 +1459,6 @@
                     $photoGallery.appendChild(wrapper);
                 });
 
-                // Ré-ajouter le bouton d'ajout
                 const addBtn = existingAddBtn || document.createElement('button');
                 addBtn.id = 'btn-add-photo';
                 addBtn.className = 'btn-add-photo';
@@ -1450,7 +1491,6 @@
 
                 saveObservations();
 
-                // Mettre à jour le cercle sur la carte
                 if (mapCircles[obs.id]) {
                     const colors = getCircleColor(obs.nestingIndex);
                     mapCircles[obs.id].setStyle({
@@ -1459,7 +1499,6 @@
                         fillOpacity: colors.fillOpacity,
                         dashArray: obs.nestingIndex ? null : '6 4',
                     });
-                    // Mettre à jour le popup
                     const nestingLabel = getNestingLabel(obs.nestingIndex);
                     const weatherEmoji = getWeatherEmoji(obs.weather);
                     const photoCount = obs.photos.length;
@@ -1487,7 +1526,6 @@
                 observations = observations.filter(o => o.id !== obsId);
                 saveObservations();
 
-                // Supprimer le cercle de la carte
                 if (mapCircles[obsId]) {
                     if (mapCircles[obsId]._dragCleanup) {
                         mapCircles[obsId]._dragCleanup();
@@ -1516,7 +1554,6 @@
                     return;
                 }
 
-                // Trier par date (plus récent d'abord)
                 const sorted = [...observations].sort((a, b) => b.timestamp - a.timestamp);
 
                 sorted.forEach(obs => {
@@ -1545,7 +1582,6 @@
 
                     card.addEventListener('click', () => {
                         closePanel();
-                        // Centrer sur l'observation et ouvrir la fiche
                         map.setView([obs.lat, obs.lng], Math.max(map.getZoom(), 15), { animate: true });
                         setTimeout(() => openObservationSheet(obs.id), 400);
                     });
@@ -1592,11 +1628,9 @@
             function checkSecretCode() {
                 const input = $secretCode.value.trim();
                 if (input.toLowerCase() === SECRET_CODE) {
-                    // Succès
                     $loginError.textContent = '';
                     $securityOverlay.classList.add('hidden');
                     $appContainer.classList.add('visible');
-                    // Initialiser la carte après un court délai pour l'animation
                     setTimeout(() => {
                         initMap();
                         updateObsCount();
@@ -1606,7 +1640,6 @@
                     $loginError.textContent = '❌ Code incorrect. Veuillez réessayer.';
                     $secretCode.value = '';
                     $secretCode.focus();
-                    // Secouer
                     $securityOverlay.querySelector('.security-card').style.animation = 'none';
                     void $securityOverlay.querySelector('.security-card').offsetWidth;
                     $securityOverlay.querySelector('.security-card').style.animation =
@@ -1614,7 +1647,6 @@
                 }
             }
 
-            // Animation shake
             const shakeKeyframes = `
                 @keyframes shake {
                     0%,100% { transform: translateX(0); }
@@ -1629,7 +1661,6 @@
             document.head.appendChild(shakeStyle);
 
             // ==================== ÉVÉNEMENTS ====================
-            // Sécurité
             $btnUnlock.addEventListener('click', checkSecretCode);
             $secretCode.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
@@ -1637,7 +1668,6 @@
                 }
             });
 
-            // FAB Dessin
             $fabDraw.addEventListener('click', function() {
                 setDrawingMode(!isDrawingMode);
                 if (isDrawingMode) {
@@ -1646,7 +1676,6 @@
                 }
             });
 
-            // FAB Liste
             $fabList.addEventListener('click', function() {
                 if ($observationsPanel.classList.contains('open')) {
                     closePanel();
@@ -1657,29 +1686,19 @@
                 }
             });
 
-            // Fermeture panneau
             $btnClosePanel.addEventListener('click', closePanel);
 
-            // Fermeture fiche
             $btnCloseSheet.addEventListener('click', closeObservationSheet);
-            $sheetBackdrop.addEventListener('click', function() {
-                // Si des modifications non sauvegardées, on ferme quand même
-                closeObservationSheet();
-            });
+            $sheetBackdrop.addEventListener('click', closeObservationSheet);
 
-            // Sauvegarde
             $btnSaveObs.addEventListener('click', saveCurrentObservation);
-
-            // Suppression
             $btnDeleteObs.addEventListener('click', deleteCurrentObservation);
 
-            // Météo
             $weatherOptions.addEventListener('click', function(e) {
                 const btn = e.target.closest('.weather-btn');
                 if (!btn) return;
                 const weatherVal = btn.dataset.weather;
                 if (selectedWeather === weatherVal) {
-                    // Désélection
                     selectedWeather = null;
                 } else {
                     selectedWeather = weatherVal;
@@ -1689,7 +1708,6 @@
                 });
             });
 
-            // Photo
             $btnAddPhoto.addEventListener('click', function(e) {
                 e.preventDefault();
                 if (tempPhotos.length >= MAX_PHOTOS) {
@@ -1713,17 +1731,8 @@
                 $photoInput.value = '';
             });
 
-            // Géolocalisation
             $btnGeoloc.addEventListener('click', geolocateUser);
 
-            // Fermer le panneau si on clique sur la carte (hors mode dessin)
-            map && map.on && map.on('click', function() {
-                if (!isDrawingMode && $observationsPanel.classList.contains('open')) {
-                    // Ne pas fermer automatiquement, l'utilisateur peut vouloir naviguer
-                }
-            });
-
-            // Redimensionnement
             window.addEventListener('resize', function() {
                 if (map) map.invalidateSize();
             });
@@ -1731,7 +1740,6 @@
             // ==================== INITIALISATION ====================
             function init() {
                 loadObservations();
-                // Focus sur le champ de code
                 setTimeout(() => $secretCode.focus(), 400);
             }
 
@@ -1763,7 +1771,6 @@
                 link.href = manifestURL;
                 document.head.appendChild(link);
 
-                // Tentative d'enregistrement d'un Service Worker minimal
                 if ('serviceWorker' in navigator) {
                     const swCode = `
                         self.addEventListener('install', function(e) {
@@ -1793,9 +1800,8 @@
             setupPWA();
             init();
 
-            console.log('🕊️ Observatoire du Loriot d\'Europe - PWA initialisée');
+            console.log('🕊️ Observatoire du Loriot d\'Europe - PWA initialisée (PC, tablette, smartphone)');
             console.log('📋 Observations chargées:', observations.length);
-            console.log('💾 Stockage localStorage utilisé:', JSON.stringify(localStorage).length, 'caractères');
         })();
     </script>
 </body>
