@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#1e3b2c">
-  <title>🕊️ Observatoire du Loriot</title>
+  <title>🕊️ Observatoire du Loriot – Centre‑Val de Loire</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -199,7 +199,7 @@
       <span class="title">🕊️ Loriot d'Europe</span>
       <span id="obs-count">0 zone(s)</span>
       <div class="tools">
-        <button class="tool-btn" id="btn-download" title="Télécharger la zone pour hors-ligne">⬇️ Zone</button>
+        <button class="tool-btn" id="btn-download" title="Progression du téléchargement">📥 Prêt</button>
         <button class="tool-btn" id="btn-satellite">🛰️ Satellite</button>
         <button class="tool-btn" id="btn-reload">🔄</button>
         <button class="tool-btn" id="btn-sync">📡 Sync</button>
@@ -265,11 +265,11 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // ========== SERVICE WORKER ==========
+    // ========== SERVICE WORKER (hors‑ligne) ==========
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         const swCode = `
-          const CACHE_NAME = 'loriot-offline-v1';
+          const CACHE_NAME = 'loriot-autocache-v1';
           const ASSETS = [
             '/',
             'index.html',
@@ -327,16 +327,21 @@
 
     // ========== APPLICATION ==========
     (function() {
-      const STORAGE = 'loriot_data_v4';
+      const STORAGE = 'loriot_data_autocache';
       const DEFAULT_RADIUS = 37.5;
+      const CENTER = [47.0, 1.5]; // Centre-Val de Loire
+      const DEFAULT_ZOOM = 8;
+      const MAX_ZOOM = 18; // zoom max pour le préchargement
+
       let observations = JSON.parse(localStorage.getItem(STORAGE) || '[]');
-      let syncQueue = JSON.parse(localStorage.getItem('loriot_sync_v4') || '[]');
+      let syncQueue = JSON.parse(localStorage.getItem('loriot_sync_autocache') || '[]');
       let map, standardLayer, satelliteLayer, currentLayer = 'standard';
       let circles = {};
       let drawingMode = false;
       let currentEditId = null;
       let tempPhotos = [];
       let selectedWeather = null;
+      let downloadProgress = { total: 0, loaded: 0 };
 
       const $map = document.getElementById('map');
       const $hint = document.getElementById('drawing-hint');
@@ -367,12 +372,12 @@
         $toast.textContent = msg;
         $toast.classList.add('show');
         clearTimeout($toast._t);
-        $toast._t = setTimeout(() => $toast.classList.remove('show'), 2000);
+        $toast._t = setTimeout(() => $toast.classList.remove('show'), 2500);
       }
 
       function save() {
         localStorage.setItem(STORAGE, JSON.stringify(observations));
-        localStorage.setItem('loriot_sync_v4', JSON.stringify(syncQueue));
+        localStorage.setItem('loriot_sync_autocache', JSON.stringify(syncQueue));
       }
 
       function getColor(index) {
@@ -389,60 +394,63 @@
         return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
       }
 
-      // ----- FONCTION DE TÉLÉCHARGEMENT DE LA ZONE -----
-      async function downloadVisibleTiles() {
-        if (!map) return;
-        const bounds = map.getBounds();
-        const minZoom = map.getZoom();
-        const maxZoom = 18; // tuiles jusqu'au zoom 18
+      // ----- TÉLÉCHARGEMENT AUTOMATIQUE DES TUILES -----
+      async function autoDownloadTiles() {
+        if (!navigator.onLine) {
+          $btnDownload.textContent = '📴 Hors ligne';
+          return;
+        }
+        const bounds = L.latLngBounds(
+          [43.5, -1.5], // Sud-Ouest de la région Centre-Val de Loire (élargi)
+          [50.5, 4.5]   // Nord-Est
+        );
         const tileUrls = [];
-        const layer = currentLayer === 'satellite' ? satelliteLayer : standardLayer;
-        const tileUrlTemplate = currentLayer === 'satellite'
+        const baseUrl = currentLayer === 'satellite'
           ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
           : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-        for (let z = minZoom; z <= maxZoom; z++) {
-          const northWest = map.project(bounds.getNorthWest(), z);
-          const southEast = map.project(bounds.getSouthEast(), z);
+        // Génère les URL pour les niveaux de zoom de DEFAULT_ZOOM à MAX_ZOOM
+        for (let z = DEFAULT_ZOOM; z <= MAX_ZOOM; z++) {
+          const nw = map.project(bounds.getNorthWest(), z);
+          const se = map.project(bounds.getSouthEast(), z);
           const tileSize = 256;
-          const minX = Math.floor(northWest.x / tileSize);
-          const maxX = Math.floor(southEast.x / tileSize);
-          const minY = Math.floor(northWest.y / tileSize);
-          const maxY = Math.floor(southEast.y / tileSize);
+          const minX = Math.floor(nw.x / tileSize);
+          const maxX = Math.floor(se.x / tileSize);
+          const minY = Math.floor(nw.y / tileSize);
+          const maxY = Math.floor(se.y / tileSize);
 
           for (let x = minX; x <= maxX; x++) {
             for (let y = minY; y <= maxY; y++) {
-              const url = tileUrlTemplate
-                .replace('{z}', z)
-                .replace('{x}', x)
-                .replace('{y}', y);
-              tileUrls.push(url);
+              tileUrls.push(baseUrl.replace('{z}', z).replace('{x}', x).replace('{y}', y));
             }
           }
         }
 
-        $btnDownload.textContent = '⏳';
-        $btnDownload.disabled = true;
-        toast(`📥 Téléchargement de ${tileUrls.length} tuiles...`);
+        downloadProgress.total = tileUrls.length;
+        downloadProgress.loaded = 0;
+        $btnDownload.textContent = `📥 0/${downloadProgress.total}`;
+        toast('⚡ Téléchargement automatique des tuiles...');
 
-        const cache = await caches.open('loriot-offline-v1');
+        const cache = await caches.open('loriot-autocache-v1');
         for (const url of tileUrls) {
           try {
             const response = await fetch(url);
             if (response.ok) {
               cache.put(url, response.clone());
             }
-          } catch (e) {
-            console.warn('Échec tuile', url);
-          }
+            downloadProgress.loaded++;
+            // Mise à jour toutes les 10 tuiles pour ne pas ralentir
+            if (downloadProgress.loaded % 10 === 0 || downloadProgress.loaded === downloadProgress.total) {
+              $btnDownload.textContent = `📥 ${downloadProgress.loaded}/${downloadProgress.total}`;
+            }
+          } catch (e) {}
         }
-        $btnDownload.textContent = '⬇️ Zone';
-        $btnDownload.disabled = false;
-        toast('✅ Zone enregistrée pour le hors-ligne');
+        $btnDownload.textContent = '✅ Prêt';
+        toast('✅ Carte enregistrée pour le hors-ligne');
       }
 
       function initMap() {
-        map = L.map('map', { center: [46.603, 1.888], zoom: 6 });
+        map = L.map('map', { center: CENTER, zoom: DEFAULT_ZOOM });
         standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
           attribution: '&copy; OpenStreetMap'
@@ -476,7 +484,11 @@
           openSheet(obs.id);
           toast('✅ Zone créée');
         });
+
         rebuildAllCircles();
+
+        // Lancement du téléchargement automatique après initialisation
+        setTimeout(autoDownloadTiles, 1000);
       }
 
       function updateSatelliteBtn() {
@@ -708,7 +720,8 @@
           () => toast('📍 Impossible de vous localiser')
         );
       });
-      $btnDownload.addEventListener('click', downloadVisibleTiles);
+      // Le bouton de téléchargement manuel peut relancer le processus
+      $btnDownload.addEventListener('click', autoDownloadTiles);
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape') { stopDrawing(); closeSheet(); closePanel(); }
       });
