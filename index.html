@@ -544,11 +544,10 @@
       };
       $('btn-geoloc').onclick = () => navigator.geolocation.getCurrentPosition(pos => map.setView([pos.coords.latitude, pos.coords.longitude], 15));
 
-      // ========== TÉLÉCHARGEMENT HORS‑LIGNE (basé sur la position GPS de l'appareil) ==========
+      // ========== TÉLÉCHARGEMENT HORS‑LIGNE (centré sur la position GPS) ==========
       $('btn-dl-offline').onclick = async () => {
         const radiusKm = parseInt($('dl-radius').value) || 15;
 
-        // Obtenir la position GPS de l'appareil
         if (!navigator.geolocation) {
           toast('📍 Géolocalisation non supportée. Utilisation du centre de la carte.');
           downloadAround(map.getCenter());
@@ -559,8 +558,10 @@
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const { latitude, longitude } = position.coords;
+            // Centre la carte sur la position de l'appareil
+            map.setView([latitude, longitude], 15);
+            toast('✅ Carte centrée sur votre position. Téléchargement en cours...');
             downloadAround(L.latLng(latitude, longitude));
-            toast(`✅ Téléchargement autour de votre position (${radiusKm} km)`);
           },
           (error) => {
             console.warn('Erreur géolocalisation:', error);
