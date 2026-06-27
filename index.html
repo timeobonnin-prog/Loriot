@@ -29,7 +29,7 @@
     .title { font-weight:700; font-size:1.1rem; display:flex; align-items:center; gap:8px; }
     .sync-badge {
       width:12px; height:12px; border-radius:50%;
-      background: #e74c3c; /* rouge par défaut */
+      background: #e74c3c;
       transition: background 0.3s;
     }
     .sync-badge.online { background: #2ecc71; }
@@ -149,7 +149,7 @@
           <option value="30">30 km</option>
           <option value="50">50 km</option>
         </select>
-        <button class="tool-btn" id="btn-dl-offline" title="Télécharger la zone">📥</button>
+        <button class="tool-btn" id="btn-dl-offline" title="Télécharger la zone autour de votre position GPS">📥</button>
         <button class="tool-btn" id="btn-satellite">🗺️</button>
         <button class="tool-btn" id="btn-geoloc">📍</button>
       </div>
@@ -344,7 +344,6 @@
       const mapEl = $('map'), sheet = $('sheet');
       const syncBadge = $('sync-badge');
 
-      // Mise à jour de l'état de connexion
       function updateOnlineStatus() {
         isOnline = navigator.onLine;
         syncBadge.className = 'sync-badge' + (isOnline ? ' online' : '');
@@ -379,7 +378,6 @@
             m.set(m.ref(db, 'observations/' + obs.id), obs)
               .then(() => toast('☁️ Sauvegardé en ligne'))
               .catch(() => {
-                // Échec : sauvegarde locale en secours
                 saveLocal(obs);
                 toast('⚠️ Sauvegarde locale (réessayera plus tard)');
               });
@@ -546,10 +544,36 @@
       };
       $('btn-geoloc').onclick = () => navigator.geolocation.getCurrentPosition(pos => map.setView([pos.coords.latitude, pos.coords.longitude], 15));
 
-      // Téléchargement des tuiles (IndexedDB)
+      // ========== TÉLÉCHARGEMENT HORS‑LIGNE (basé sur la position GPS de l'appareil) ==========
       $('btn-dl-offline').onclick = async () => {
         const radiusKm = parseInt($('dl-radius').value) || 15;
-        const center = map.getCenter();
+
+        // Obtenir la position GPS de l'appareil
+        if (!navigator.geolocation) {
+          toast('📍 Géolocalisation non supportée. Utilisation du centre de la carte.');
+          downloadAround(map.getCenter());
+          return;
+        }
+
+        toast('📍 Obtention de votre position GPS...');
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            downloadAround(L.latLng(latitude, longitude));
+            toast(`✅ Téléchargement autour de votre position (${radiusKm} km)`);
+          },
+          (error) => {
+            console.warn('Erreur géolocalisation:', error);
+            toast('⚠️ Impossible d’obtenir votre position. Utilisation du centre de la carte.');
+            downloadAround(map.getCenter());
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      };
+
+      async function downloadAround(centerLatLng) {
+        const radiusKm = parseInt($('dl-radius').value) || 15;
+        const center = centerLatLng;
         const latDelta = radiusKm / 111.32;
         const lngDelta = latDelta / Math.cos(center.lat * Math.PI / 180);
         const bounds = L.latLngBounds([center.lat - latDelta, center.lng - lngDelta], [center.lat + latDelta, center.lng + lngDelta]);
@@ -584,7 +608,7 @@
         }
         $('progress-label').textContent = `✅ Cartes ${radiusKm}km enregistrées en DB !`;
         setTimeout(() => { $('progress-wrap').style.display = 'none'; $('progress-label').textContent = ''; }, 3000);
-      };
+      }
 
       initData();
       initMap();
